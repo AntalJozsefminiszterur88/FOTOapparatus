@@ -6,7 +6,8 @@ from datetime import datetime
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QScreen, QPainter, QFont
-from PySide6.QtCore import QRect, Qt, QStandardPaths  # QStandardPaths itt nem közvetlenül használt, de a tesztblokkban igen
+from PySide6.QtCore import QRect, Qt, QStandardPaths
+# QStandardPaths itt nem közvetlenül használt, de a tesztblokkban igen
 
 # A QApplication példányt a main.py hozza létre.
 # Ennek a modulnak arra kell támaszkodnia.
