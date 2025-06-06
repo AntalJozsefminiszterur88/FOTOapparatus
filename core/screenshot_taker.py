@@ -5,13 +5,13 @@ import sys
 from datetime import datetime
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QScreen
-from PySide6.QtCore import QRect, QStandardPaths # QStandardPaths itt nem közvetlenül használt, de a tesztblokkban igen
+from PySide6.QtGui import QScreen, QPainter, QFont
+from PySide6.QtCore import QRect, Qt, QStandardPaths  # QStandardPaths itt nem közvetlenül használt, de a tesztblokkban igen
 
 # A QApplication példányt a main.py hozza létre.
 # Ennek a modulnak arra kell támaszkodnia.
 
-def take_screenshot(save_directory, filename_prefix="screenshot", area=None):
+def take_screenshot(save_directory, filename_prefix="screenshot", area=None, add_timestamp=False):
     """
     Képernyőképet készít a megadott területről vagy a teljes elsődleges képernyőről.
 
@@ -20,6 +20,8 @@ def take_screenshot(save_directory, filename_prefix="screenshot", area=None):
         filename_prefix (str, optional): A fájlnév előtagja. Alapértelmezett: "screenshot".
         area (QRect, optional): A rögzítendő terület. Ha None, a teljes elsődleges
                                 képernyőt rögzíti.
+        add_timestamp (bool, optional): Ha True, a kész kép jobb alsó sarkára
+                                ráírja az aktuális dátumot és időt.
 
     Returns:
         str | None: A mentett kép teljes elérési útja siker esetén, None hiba esetén.
@@ -54,6 +56,16 @@ def take_screenshot(save_directory, filename_prefix="screenshot", area=None):
             return None
 
         os.makedirs(save_directory, exist_ok=True)
+
+        if add_timestamp:
+            painter = QPainter(pixmap)
+            painter.setPen(Qt.GlobalColor.white)
+            painter.setFont(QFont("Arial", 14))
+            timestamp_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            painter.drawText(pixmap.rect().adjusted(10, 10, -10, -10),
+                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
+                             timestamp_text)
+            painter.end()
 
         # --- MÓDOSÍTOTT FÁJLNÉV FORMÁTUM ---
         # Kért formátum: évszám-hónap-nap-óra-perc
