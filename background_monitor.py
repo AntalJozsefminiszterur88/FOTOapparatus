@@ -45,7 +45,7 @@ def main():
                     if mode == "custom" and custom_area:
                         rect = QRect(custom_area.get("x", 0), custom_area.get("y", 0),
                                      custom_area.get("width", 0), custom_area.get("height", 0))
-                    take_screenshot(save_path, "Screenshot", rect, include_timestamp, timestamp_position)
+                    take_screenshot(save_path, "Kép", rect, include_timestamp, timestamp_position)
                     executed.add(key)
             time.sleep(60)
     except KeyboardInterrupt:

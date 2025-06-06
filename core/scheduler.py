@@ -109,9 +109,9 @@ class Scheduler:
                 self.scheduler.add_job(
                     take_screenshot,
                     trigger=trigger,
-                    args=[save_path, "Screenshot", area_arg, include_timestamp, timestamp_position],
+                    args=[save_path, "Kép", area_arg, include_timestamp, timestamp_position],
                     id=job_id,
-                    name=f"Screenshot at {time_str} on {days_str}",
+                    name=f"Kép at {time_str} on {days_str}",
                     replace_existing=True,
                 )
                 logger.info(f"Feladat hozzáadva (ID: {job_id}): Idő={time_str}, Napok={days_str}, Terület={area_arg if area_arg else 'Fullscreen'}")
