@@ -62,9 +62,10 @@ class Scheduler:
             # Folytatjuk az újak hozzáadásával
 
         schedules = self.current_settings.get("schedules", [])
-        save_path = self.current_settings.get("save_path", ".") # Alapértelmezett: aktuális mappa
+        save_path = self.current_settings.get("save_path", ".")
         mode = self.current_settings.get("screenshot_mode", "fullscreen")
         custom_area_dict = self.current_settings.get("custom_area", None)
+        include_timestamp = self.current_settings.get("include_timestamp", True)
 
         logger.info(f"Feladatok ütemezése {len(schedules)} szabály alapján. Mentési hely: {save_path}, Mód: {mode}")
 
@@ -107,10 +108,10 @@ class Scheduler:
                 self.scheduler.add_job(
                     take_screenshot,
                     trigger=trigger,
-                    args=[save_path, "Screenshot", area_arg, True],  # area_arg itt QRect vagy None
+                    args=[save_path, "Screenshot", area_arg, include_timestamp],
                     id=job_id,
                     name=f"Screenshot at {time_str} on {days_str}",
-                    replace_existing=True  # Felülírja, ha véletlenül létezne már ilyen ID
+                    replace_existing=True,
                 )
                 logger.info(f"Feladat hozzáadva (ID: {job_id}): Idő={time_str}, Napok={days_str}, Terület={area_arg if area_arg else 'Fullscreen'}")
 
