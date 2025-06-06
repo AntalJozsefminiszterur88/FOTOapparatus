@@ -63,9 +63,11 @@ def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add
             painter.setPen(Qt.GlobalColor.white)
             painter.setFont(QFont("Arial", 14))
             timestamp_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            painter.drawText(pixmap.rect().adjusted(10, 10, -10, -10),
-                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom,
-                             timestamp_text)
+            painter.drawText(
+                pixmap.rect().adjusted(10, 10, -10, -10),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
+                timestamp_text,
+            )
             painter.end()
 
         # --- MÓDOSÍTOTT FÁJLNÉV FORMÁTUM ---

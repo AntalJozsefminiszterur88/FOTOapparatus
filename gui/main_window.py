@@ -223,17 +223,33 @@ class MainWindow(QMainWindow):
         self.timer_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.main_layout.addWidget(self.timer_list)
         bottom_layout = QHBoxLayout()
-        bottom_layout.setContentsMargins(5,5,5,5)
+        bottom_layout.setContentsMargins(5, 5, 5, 5)
         self.folder_button = QPushButton("Mentési Mappa...")
         bottom_layout.addWidget(self.folder_button)
-        self.folder_label = QLabel("Mappa: -"); self.folder_label.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Preferred)
+        self.folder_label = QLabel("Mappa: -")
+        self.folder_label.setSizePolicy(
+            QSizePolicy.Policy.MinimumExpanding,
+            QSizePolicy.Policy.Preferred,
+        )
         bottom_layout.addWidget(self.folder_label)
         bottom_layout.addStretch(1)
+
+        options_layout = QVBoxLayout()
         self.autostart_checkbox = QCheckBox("Indítás a Windows-zal")
-        if autostart_manager._IS_WINDOWS: bottom_layout.addWidget(self.autostart_checkbox)
-        else: self.autostart_checkbox.setVisible(False)
-        self.save_button = QPushButton("Mentés"); self.save_button.setDefault(True)
+        if autostart_manager._IS_WINDOWS:
+            options_layout.addWidget(self.autostart_checkbox)
+        else:
+            self.autostart_checkbox.setVisible(False)
+
+        self.timestamp_checkbox = QCheckBox("Dátum kiírása")
+        options_layout.addWidget(self.timestamp_checkbox)
+
+        bottom_layout.addLayout(options_layout)
+
+        self.save_button = QPushButton("Mentés")
+        self.save_button.setDefault(True)
         bottom_layout.addWidget(self.save_button)
+
         self.main_layout.addLayout(bottom_layout)
         logger.debug("_setup_ui Befejeződött.")
 
@@ -244,6 +260,8 @@ class MainWindow(QMainWindow):
         self.timer_list.list_changed.connect(self._mark_dirty)
         self.save_button.clicked.connect(self.save_settings)
         self.folder_button.clicked.connect(self.select_save_folder)
+        if hasattr(self, 'timestamp_checkbox') and self.timestamp_checkbox:
+            self.timestamp_checkbox.stateChanged.connect(self._mark_dirty)
         if autostart_manager._IS_WINDOWS and hasattr(self, 'autostart_checkbox') and self.autostart_checkbox:
             try:
                 self.autostart_checkbox.stateChanged.connect(self._handle_autostart_change)
@@ -269,6 +287,11 @@ class MainWindow(QMainWindow):
         save_path_loaded = self.settings.get("save_path", "")
         logger.info(f"UI Update -> FolderLabel: mentési útvonal='{save_path_loaded}'")
         self._update_folder_label(save_path_loaded)
+        if hasattr(self, 'timestamp_checkbox') and self.timestamp_checkbox:
+            ts_enabled = self.settings.get("include_timestamp", True)
+            self.timestamp_checkbox.blockSignals(True)
+            self.timestamp_checkbox.setChecked(ts_enabled)
+            self.timestamp_checkbox.blockSignals(False)
         if autostart_manager._IS_WINDOWS and hasattr(self, 'autostart_checkbox') and self.autostart_checkbox:
             autostart_preferred = self.settings.get("autostart_preferred", False)
             logger.info(f"UI Update -> Autostart: JSON preferencia = {autostart_preferred}")
@@ -382,7 +405,8 @@ class MainWindow(QMainWindow):
             "screenshot_mode": mode,
             "custom_area": custom_area_dict_to_save,
             "schedules": self.timer_list.get_all_settings(),
-            "autostart_preferred": self.settings.get("autostart_preferred", False)
+            "autostart_preferred": self.settings.get("autostart_preferred", False),
+            "include_timestamp": self.timestamp_checkbox.isChecked() if hasattr(self, "timestamp_checkbox") else True,
         }
         logger.info(f"Teljes mentendő new_settings: {new_settings}")
         try:

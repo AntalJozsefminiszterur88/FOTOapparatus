@@ -87,7 +87,8 @@ class ConfigManager:
             "save_path": default_screenshot_save_path,
             "screenshot_mode": "fullscreen",
             "custom_area": {"x": 0, "y": 0, "width": 100, "height": 100},
-            "schedules": []
+            "schedules": [],
+            "include_timestamp": True,
         }
 
     def load_settings(self):
