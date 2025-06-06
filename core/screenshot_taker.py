@@ -18,7 +18,7 @@ def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add
 
     Args:
         save_directory (str): A könyvtár, ahova a képet menteni kell.
-        filename_prefix (str, optional): A fájlnév előtagja. Alapértelmezett: "screenshot".
+        filename_prefix (str, optional): A fájlnév előtagja. Alapértelmezett: "Screenshot".
         area (QRect, optional): A rögzítendő terület. Ha None, a teljes elsődleges
                                 képernyőt rögzíti.
         add_timestamp (bool, optional): Ha True, a kész kép jobb alsó sarkára
@@ -69,11 +69,10 @@ def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add
             painter.end()
 
         # --- MÓDOSÍTOTT FÁJLNÉV FORMÁTUM ---
-        # Kért formátum: Screenshot_YYYY_MM_DD_HH-MM:SS
-        # Az aláhúzások és kötőjelek/kettespontok a példában megadott elnevezési
-        # szabályt követik. A másodpercek továbbra is szerepelnek a felülírás
-        # elkerülése érdekében.
-        timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M:%S")
+        # Kért formátum: Screenshot_YYYY_MM_DD_HH-MM-SS
+        # A kettőspont használata Windows rendszeren problémát okozhat, ezért
+        # a másodperceket is kötőjellel választjuk el.
+        timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
         
         filename = f"{filename_prefix}_{timestamp_for_filename}.png"
         # Ha a prefixet el szeretnéd hagyni, akkor:

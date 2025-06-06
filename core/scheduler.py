@@ -107,7 +107,7 @@ class Scheduler:
                 self.scheduler.add_job(
                     take_screenshot,
                     trigger=trigger,
-                    args=[save_path, "scheduled_screenshot", area_arg, True],  # area_arg itt QRect vagy None
+                    args=[save_path, "Screenshot", area_arg, True],  # area_arg itt QRect vagy None
                     id=job_id,
                     name=f"Screenshot at {time_str} on {days_str}",
                     replace_existing=True  # Felülírja, ha véletlenül létezne már ilyen ID
