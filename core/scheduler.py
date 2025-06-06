@@ -66,6 +66,7 @@ class Scheduler:
         mode = self.current_settings.get("screenshot_mode", "fullscreen")
         custom_area_dict = self.current_settings.get("custom_area", None)
         include_timestamp = self.current_settings.get("include_timestamp", True)
+        timestamp_position = self.current_settings.get("timestamp_position", "top-left")
 
         logger.info(f"Feladatok ütemezése {len(schedules)} szabály alapján. Mentési hely: {save_path}, Mód: {mode}")
 
@@ -108,7 +109,7 @@ class Scheduler:
                 self.scheduler.add_job(
                     take_screenshot,
                     trigger=trigger,
-                    args=[save_path, "Screenshot", area_arg, include_timestamp],
+                    args=[save_path, "Screenshot", area_arg, include_timestamp, timestamp_position],
                     id=job_id,
                     name=f"Screenshot at {time_str} on {days_str}",
                     replace_existing=True,

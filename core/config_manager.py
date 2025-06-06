@@ -89,6 +89,7 @@ class ConfigManager:
             "custom_area": {"x": 0, "y": 0, "width": 100, "height": 100},
             "schedules": [],
             "include_timestamp": True,
+            "timestamp_position": "top-left",
         }
 
     def load_settings(self):
