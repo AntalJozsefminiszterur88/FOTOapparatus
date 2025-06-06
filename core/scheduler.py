@@ -1,7 +1,7 @@
 # core/scheduler.py
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # APScheduler importok
 from apscheduler.schedulers.background import BackgroundScheduler

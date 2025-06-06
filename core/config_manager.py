@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from PySide6.QtCore import QStandardPaths, QCoreApplication # QCoreApplication is nem árt itt
+from PySide6.QtWidgets import QApplication
 
 class ConfigManager:
     """Kezeli az alkalmazás beállításainak mentését és betöltését."""
