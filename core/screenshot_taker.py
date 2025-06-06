@@ -5,8 +5,8 @@ import sys
 from datetime import datetime
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QScreen
-from PySide6.QtCore import QRect, QStandardPaths # QStandardPaths itt nem közvetlenül használt, de a tesztblokkban igen
+from PySide6.QtGui import QScreen, QPainter, QColor, QFont
+from PySide6.QtCore import QRect, QStandardPaths, Qt  # QStandardPaths itt nem közvetlenül használt, de a tesztblokkban igen
 
 # A QApplication példányt a main.py hozza létre.
 # Ennek a modulnak arra kell támaszkodnia.
@@ -14,6 +14,7 @@ from PySide6.QtCore import QRect, QStandardPaths # QStandardPaths itt nem közve
 def take_screenshot(save_directory, filename_prefix="screenshot", area=None):
     """
     Képernyőképet készít a megadott területről vagy a teljes elsődleges képernyőről.
+    A mentett képre rákerül a készítés dátuma és ideje is.
 
     Args:
         save_directory (str): A könyvtár, ahova a képet menteni kell.
@@ -52,6 +53,18 @@ def take_screenshot(save_directory, filename_prefix="screenshot", area=None):
         if pixmap.isNull():
             print("HIBA: Nem sikerült rögzíteni a képernyőt (grabWindow üres pixmap-et adott vissza).", file=sys.stderr)
             return None
+
+        # A készítés dátuma kerüljön rá a képre
+        timestamp_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        painter.setPen(QColor(255, 255, 255))
+        font = QFont()
+        font.setPointSize(12)
+        painter.setFont(font)
+        text_rect = pixmap.rect().adjusted(10, 10, -10, -10)
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight, timestamp_text)
+        painter.end()
 
         os.makedirs(save_directory, exist_ok=True)
 
