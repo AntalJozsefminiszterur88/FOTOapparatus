@@ -12,7 +12,7 @@ from PySide6.QtCore import QRect, Qt, QStandardPaths
 # A QApplication példányt a main.py hozza létre.
 # Ennek a modulnak arra kell támaszkodnia.
 
-def take_screenshot(save_directory, filename_prefix="screenshot", area=None, add_timestamp=False):
+def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add_timestamp=False):
     """
     Képernyőképet készít a megadott területről vagy a teljes elsődleges képernyőről.
 
@@ -69,9 +69,11 @@ def take_screenshot(save_directory, filename_prefix="screenshot", area=None, add
             painter.end()
 
         # --- MÓDOSÍTOTT FÁJLNÉV FORMÁTUM ---
-        # Kért formátum: évszám-hónap-nap-óra-perc
-        # Hozzáadva a másodperc is az egyediség és a felülírás elkerülése végett.
-        timestamp_for_filename = datetime.now().strftime("%Y-%m-%d-%H-%M-%S") 
+        # Kért formátum: Screenshot_YYYY_MM_DD_HH-MM:SS
+        # Az aláhúzások és kötőjelek/kettespontok a példában megadott elnevezési
+        # szabályt követik. A másodpercek továbbra is szerepelnek a felülírás
+        # elkerülése érdekében.
+        timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M:%S")
         
         filename = f"{filename_prefix}_{timestamp_for_filename}.png"
         # Ha a prefixet el szeretnéd hagyni, akkor:
@@ -107,7 +109,7 @@ if __name__ == "__main__":
     try:
         # Csak a fájlnév generálási logika tesztelése (nem készít képet)
         prefix_test = "test_prefix"
-        ts_test = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        ts_test = datetime.now().strftime("%Y_%m_%d_%H-%M:%S")
         fn_test = f"{prefix_test}_{ts_test}.png"
         print(f"\nPélda generált fájlnév ({prefix_test} prefixszel): {fn_test}")
 
