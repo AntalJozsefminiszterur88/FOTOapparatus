@@ -12,13 +12,13 @@ from PySide6.QtCore import QRect, Qt, QStandardPaths
 # A QApplication példányt a main.py hozza létre.
 # Ennek a modulnak arra kell támaszkodnia.
 
-def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add_timestamp=False, timestamp_position="top-left"):
+def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_timestamp=False, timestamp_position="top-left"):
     """
     Képernyőképet készít a megadott területről vagy a teljes elsődleges képernyőről.
 
     Args:
         save_directory (str): A könyvtár, ahova a képet menteni kell.
-        filename_prefix (str, optional): A fájlnév előtagja. Alapértelmezett: "Screenshot".
+        filename_prefix (str, optional): A fájlnév előtagja. Alapértelmezett: "Kép".
         area (QRect, optional): A rögzítendő terület. Ha None, a teljes elsődleges
                                 képernyőt rögzíti.
         add_timestamp (bool, optional): Ha True, a képre ráírja az aktuális dátumot.
@@ -79,10 +79,10 @@ def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add
             painter.end()
 
         # --- MÓDOSÍTOTT FÁJLNÉV FORMÁTUM ---
-        # Kért formátum: Screenshot_YYYY_MM_DD_HH-MM-SS
-        # A kettőspont használata Windows rendszeren problémát okozhat, ezért
-        # a másodperceket is kötőjellel választjuk el.
-        timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
+        # Kért formátum: Kép_YYYY_MM_DD_HH-MM
+        # A kettőspont használata Windows rendszeren problémát okozhat,
+        # ezért az időrészeket kötőjellel választjuk el.
+        timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M")
         
         filename = f"{filename_prefix}_{timestamp_for_filename}.png"
         # Ha a prefixet el szeretnéd hagyni, akkor:
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     try:
         # Csak a fájlnév generálási logika tesztelése (nem készít képet)
         prefix_test = "test_prefix"
-        ts_test = datetime.now().strftime("%Y_%m_%d_%H-%M:%S")
+        ts_test = datetime.now().strftime("%Y_%m_%d_%H-%M")
         fn_test = f"{prefix_test}_{ts_test}.png"
         print(f"\nPélda generált fájlnév ({prefix_test} prefixszel): {fn_test}")
 
