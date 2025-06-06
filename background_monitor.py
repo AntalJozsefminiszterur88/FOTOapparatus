@@ -30,6 +30,7 @@ def main():
     custom_area = settings.get("custom_area")
     schedules = settings.get("schedules", [])
     include_timestamp = settings.get("include_timestamp", True)
+    timestamp_position = settings.get("timestamp_position", "top-left")
     executed = set()
     print("Idozito monitor elindult. Ctrl+C a leallitasahoz.")
     try:
@@ -44,7 +45,7 @@ def main():
                     if mode == "custom" and custom_area:
                         rect = QRect(custom_area.get("x", 0), custom_area.get("y", 0),
                                      custom_area.get("width", 0), custom_area.get("height", 0))
-                    take_screenshot(save_path, "Screenshot", rect, include_timestamp)
+                    take_screenshot(save_path, "Screenshot", rect, include_timestamp, timestamp_position)
                     executed.add(key)
             time.sleep(60)
     except KeyboardInterrupt:

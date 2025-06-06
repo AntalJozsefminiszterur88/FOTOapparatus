@@ -12,7 +12,7 @@ from PySide6.QtCore import QRect, Qt, QStandardPaths
 # A QApplication példányt a main.py hozza létre.
 # Ennek a modulnak arra kell támaszkodnia.
 
-def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add_timestamp=False):
+def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add_timestamp=False, timestamp_position="top-left"):
     """
     Képernyőképet készít a megadott területről vagy a teljes elsődleges képernyőről.
 
@@ -21,8 +21,9 @@ def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add
         filename_prefix (str, optional): A fájlnév előtagja. Alapértelmezett: "Screenshot".
         area (QRect, optional): A rögzítendő terület. Ha None, a teljes elsődleges
                                 képernyőt rögzíti.
-        add_timestamp (bool, optional): Ha True, a kész kép jobb alsó sarkára
-                                ráírja az aktuális dátumot és időt.
+        add_timestamp (bool, optional): Ha True, a képre ráírja az aktuális dátumot.
+        timestamp_position (str, optional): A felirat helye ('top-left', 'top-right',
+                                'bottom-left', 'bottom-right').
 
     Returns:
         str | None: A mentett kép teljes elérési útja siker esetén, None hiba esetén.
@@ -63,9 +64,16 @@ def take_screenshot(save_directory, filename_prefix="Screenshot", area=None, add
             painter.setPen(Qt.GlobalColor.white)
             painter.setFont(QFont("Arial", 14))
             timestamp_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+            if timestamp_position == "top-right":
+                alignment = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop
+            elif timestamp_position == "bottom-left":
+                alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom
+            elif timestamp_position == "bottom-right":
+                alignment = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom
             painter.drawText(
                 pixmap.rect().adjusted(10, 10, -10, -10),
-                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
+                alignment,
                 timestamp_text,
             )
             painter.end()

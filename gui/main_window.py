@@ -14,6 +14,7 @@ try:
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
     from .screenshot_size_widget import ScreenshotSizeWidget
+    from .timestamp_position_widget import TimestampPositionWidget
     from .timer_list_widget import TimerListWidget
     from .selection_overlay import SelectionOverlay
     from core.config_manager import ConfigManager
@@ -50,7 +51,7 @@ except NameError:
 
 
 class MainWindow(QMainWindow):
-    BASE_WINDOW_TITLE = "FOTOapp"
+    BASE_WINDOW_TITLE = "FOTO-Apparátus"
 
     def __init__(self, parent=None, start_hidden=False, server_name=None):
         super().__init__(parent)
@@ -106,7 +107,7 @@ class MainWindow(QMainWindow):
         if start_hidden and self.tray_icon.isVisible():
             logger.info("Alkalmazás rejtve indul, üzenet a tálcán.")
             self.tray_icon.showMessage(
-                "FOTOapp Indult", "Az alkalmazás a háttérben fut.",
+                "FOTO-Apparátus Indult", "Az alkalmazás a háttérben fut.",
                 QSystemTrayIcon.MessageIcon.Information, 3000
             )
         
@@ -164,7 +165,7 @@ class MainWindow(QMainWindow):
         logger.debug("Tálca ikon létrehozása...")
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(self.app_icon) 
-        self.tray_icon.setToolTip("FOTOapp - A háttérben fut")
+        self.tray_icon.setToolTip("FOTO-Apparátus - A háttérben fut")
         tray_menu = QMenu(self)
         show_action = QAction("Megnyitás", self)
         show_action.triggered.connect(self.show_window_from_tray)
@@ -219,6 +220,10 @@ class MainWindow(QMainWindow):
         logger.debug("UI elemek beállítása...")
         self.size_widget = ScreenshotSizeWidget()
         self.main_layout.addWidget(self.size_widget)
+
+        self.timestamp_widget = TimestampPositionWidget()
+        self.timestamp_checkbox = self.timestamp_widget.include_checkbox
+        self.main_layout.addWidget(self.timestamp_widget)
         self.timer_list = TimerListWidget()
         self.timer_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.main_layout.addWidget(self.timer_list)
@@ -241,9 +246,6 @@ class MainWindow(QMainWindow):
         else:
             self.autostart_checkbox.setVisible(False)
 
-        self.timestamp_checkbox = QCheckBox("Dátum kiírása")
-        options_layout.addWidget(self.timestamp_checkbox)
-
         bottom_layout.addLayout(options_layout)
 
         self.save_button = QPushButton("Mentés")
@@ -260,8 +262,9 @@ class MainWindow(QMainWindow):
         self.timer_list.list_changed.connect(self._mark_dirty)
         self.save_button.clicked.connect(self.save_settings)
         self.folder_button.clicked.connect(self.select_save_folder)
-        if hasattr(self, 'timestamp_checkbox') and self.timestamp_checkbox:
-            self.timestamp_checkbox.stateChanged.connect(self._mark_dirty)
+        if hasattr(self, 'timestamp_widget'):
+            self.timestamp_widget.include_changed.connect(lambda _: self._mark_dirty())
+            self.timestamp_widget.position_changed.connect(lambda _: self._mark_dirty())
         if autostart_manager._IS_WINDOWS and hasattr(self, 'autostart_checkbox') and self.autostart_checkbox:
             try:
                 self.autostart_checkbox.stateChanged.connect(self._handle_autostart_change)
@@ -287,11 +290,10 @@ class MainWindow(QMainWindow):
         save_path_loaded = self.settings.get("save_path", "")
         logger.info(f"UI Update -> FolderLabel: mentési útvonal='{save_path_loaded}'")
         self._update_folder_label(save_path_loaded)
-        if hasattr(self, 'timestamp_checkbox') and self.timestamp_checkbox:
+        if hasattr(self, 'timestamp_widget'):
             ts_enabled = self.settings.get("include_timestamp", True)
-            self.timestamp_checkbox.blockSignals(True)
-            self.timestamp_checkbox.setChecked(ts_enabled)
-            self.timestamp_checkbox.blockSignals(False)
+            ts_position = self.settings.get("timestamp_position", "top-left")
+            self.timestamp_widget.set_settings(ts_enabled, ts_position)
         if autostart_manager._IS_WINDOWS and hasattr(self, 'autostart_checkbox') and self.autostart_checkbox:
             autostart_preferred = self.settings.get("autostart_preferred", False)
             logger.info(f"UI Update -> Autostart: JSON preferencia = {autostart_preferred}")
@@ -407,6 +409,7 @@ class MainWindow(QMainWindow):
             "schedules": self.timer_list.get_all_settings(),
             "autostart_preferred": self.settings.get("autostart_preferred", False),
             "include_timestamp": self.timestamp_checkbox.isChecked() if hasattr(self, "timestamp_checkbox") else True,
+            "timestamp_position": self.timestamp_widget.get_settings()[1] if hasattr(self, "timestamp_widget") else "top-left",
         }
         logger.info(f"Teljes mentendő new_settings: {new_settings}")
         try:
@@ -439,5 +442,5 @@ class MainWindow(QMainWindow):
             if reply == QMessageBox.StandardButton.Discard: self.is_dirty = False; self._update_window_title()
             elif reply == QMessageBox.StandardButton.Cancel: event.ignore(); return
         event.ignore(); self.hide()
-        self.tray_icon.showMessage("FOTOapp", "Az alkalmazás a háttérben fut.", QSystemTrayIcon.MessageIcon.Information, 2000)
+        self.tray_icon.showMessage("FOTO-Apparátus", "Az alkalmazás a háttérben fut.", QSystemTrayIcon.MessageIcon.Information, 2000)
         logger.info("Ablak elrejtve, alkalmazás a tálcán fut tovább.")
