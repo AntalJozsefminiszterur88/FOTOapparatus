@@ -16,6 +16,9 @@ import os
 from datetime import datetime
 from typing import Optional
 
+# Standard library
+import ctypes
+
 from PIL import Image, ImageDraw, ImageFont, ImageGrab
 
 # Only import pywin32 modules on Windows
@@ -72,7 +75,8 @@ def _capture_window(title: str) -> Optional[Image.Image]:
     bitmap.CreateCompatibleBitmap(mfc_dc, width, height)
     save_dc.SelectObject(bitmap)
 
-    result = win32gui.PrintWindow(hwnd, save_dc.GetSafeHdc(), 0)
+    # ``PrintWindow`` is not wrapped by ``pywin32`` so we call it via ``ctypes``
+    result = ctypes.windll.user32.PrintWindow(hwnd, save_dc.GetSafeHdc(), 0)
 
     bmpinfo = bitmap.GetInfo()
     bmpstr = bitmap.GetBitmapBits(True)
