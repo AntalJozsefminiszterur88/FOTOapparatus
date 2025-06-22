@@ -50,18 +50,14 @@ def main():
                             custom_area.get("width", 0),
                             custom_area.get("height", 0),
                         )
-                    if capture_type == "photo":
-                        from core.photo_taker import take_photo
-                        take_photo(save_path, "Foto")
-                    else:
-                        take_screenshot(
-                            save_path,
-                            "Kép",
-                            rect,
-                            include_timestamp,
-                            timestamp_position,
-                            settings.get("target_window", ""),
-                        )
+                    take_screenshot(
+                        save_path,
+                        "Kép",
+                        rect,
+                        include_timestamp,
+                        timestamp_position,
+                        settings.get("target_window", ""),
+                    )
                     executed.add(key)
             time.sleep(60)
     except KeyboardInterrupt:
