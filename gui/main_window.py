@@ -7,9 +7,25 @@ import logging
 
 try:
     from PySide6.QtCore import Slot, QRect, Qt, QCoreApplication, QStandardPaths, QRectF
-    from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                                 QFileDialog, QMessageBox, QLabel, QCheckBox, QSpacerItem, QSizePolicy,
-                                 QApplication, QSystemTrayIcon, QMenu, QStyle)
+    from PySide6.QtWidgets import (
+        QMainWindow,
+        QWidget,
+        QVBoxLayout,
+        QHBoxLayout,
+        QPushButton,
+        QFileDialog,
+        QMessageBox,
+        QLabel,
+        QCheckBox,
+        QSpacerItem,
+        QSizePolicy,
+        QApplication,
+        QSystemTrayIcon,
+        QMenu,
+        QStyle,
+        QGroupBox,
+        QRadioButton,
+    )
     from PySide6.QtGui import QIcon, QAction
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
@@ -219,6 +235,15 @@ class MainWindow(QMainWindow):
         
     def _setup_ui(self):
         logger.debug("UI elemek beállítása...")
+        self.capture_group = QGroupBox("Felvétel mód")
+        capture_layout = QVBoxLayout(self.capture_group)
+        self.radio_capture_screenshot = QRadioButton("Képernyőkép")
+        self.radio_capture_photo = QRadioButton("Fénykép")
+        capture_layout.addWidget(self.radio_capture_screenshot)
+        capture_layout.addWidget(self.radio_capture_photo)
+        self.radio_capture_screenshot.setChecked(True)
+        self.main_layout.addWidget(self.capture_group)
+
         self.size_widget = ScreenshotSizeWidget()
         self.main_layout.addWidget(self.size_widget)
 
@@ -263,6 +288,8 @@ class MainWindow(QMainWindow):
         logger.debug("Jel-slot kapcsolatok beállítása...")
         self.size_widget.mode_changed.connect(self._handle_mode_change)
         self.size_widget.select_area_requested.connect(self._start_area_selection)
+        self.radio_capture_screenshot.toggled.connect(self._handle_capture_type_change)
+        self.radio_capture_photo.toggled.connect(self._handle_capture_type_change)
         if hasattr(self, 'window_selector'):
             self.window_selector.selection_changed.connect(lambda _: self._mark_dirty())
         self.timer_list.list_changed.connect(self._mark_dirty)
@@ -278,10 +305,28 @@ class MainWindow(QMainWindow):
             except Exception as e: logger.exception("Hiba az autostart_checkbox csatlakoztatásakor:")
         logger.debug("_connect_signals Befejeződött.")
 
+    @Slot()
+    def _handle_capture_type_change(self):
+        capture_type = "photo" if self.radio_capture_photo.isChecked() else "screenshot"
+        widgets_enabled = capture_type == "screenshot"
+        self.size_widget.setEnabled(widgets_enabled)
+        self.window_selector.setEnabled(widgets_enabled)
+        color_inactive = "#555555"
+        self.size_widget.setStyleSheet("" if widgets_enabled else f"background-color: {color_inactive};")
+        self.window_selector.setStyleSheet("" if widgets_enabled else f"background-color: {color_inactive};")
+        self.settings["capture_type"] = capture_type
+        self._mark_dirty()
+
     def _update_ui_from_settings(self):
         logger.info("Metódus hívás: _update_ui_from_settings. Betöltött self.settings:")
         logger.info(self.settings)
         if not self.settings: logger.warning("Nincsenek beállítások a UI frissítéséhez."); return
+        capture_loaded = self.settings.get("capture_type", "screenshot")
+        if capture_loaded == "photo":
+            self.radio_capture_photo.setChecked(True)
+        else:
+            self.radio_capture_screenshot.setChecked(True)
+        self._handle_capture_type_change()
         try:
             mode_loaded = self.settings.get("screenshot_mode", "fullscreen")
             custom_area_loaded = self.settings.get("custom_area", {})
@@ -413,6 +458,7 @@ class MainWindow(QMainWindow):
 
         new_settings = {
             "save_path": save_path,
+            "capture_type": "photo" if self.radio_capture_photo.isChecked() else "screenshot",
             "screenshot_mode": mode,
             "custom_area": custom_area_dict_to_save,
             "target_window": self.window_selector.get_selected_title() if hasattr(self, 'window_selector') else "",

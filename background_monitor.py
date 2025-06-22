@@ -27,6 +27,7 @@ def main():
     settings = cfg.load_settings()
     save_path = settings.get("save_path", ".")
     mode = settings.get("screenshot_mode", "fullscreen")
+    capture_type = settings.get("capture_type", "screenshot")
     custom_area = settings.get("custom_area")
     schedules = settings.get("schedules", [])
     include_timestamp = settings.get("include_timestamp", True)
@@ -43,9 +44,24 @@ def main():
                         continue
                     rect = None
                     if mode == "custom" and custom_area:
-                        rect = QRect(custom_area.get("x", 0), custom_area.get("y", 0),
-                                     custom_area.get("width", 0), custom_area.get("height", 0))
-                    take_screenshot(save_path, "Kép", rect, include_timestamp, timestamp_position, settings.get("target_window", ""))
+                        rect = QRect(
+                            custom_area.get("x", 0),
+                            custom_area.get("y", 0),
+                            custom_area.get("width", 0),
+                            custom_area.get("height", 0),
+                        )
+                    if capture_type == "photo":
+                        from core.photo_taker import take_photo
+                        take_photo(save_path, "Foto")
+                    else:
+                        take_screenshot(
+                            save_path,
+                            "Kép",
+                            rect,
+                            include_timestamp,
+                            timestamp_position,
+                            settings.get("target_window", ""),
+                        )
                     executed.add(key)
             time.sleep(60)
     except KeyboardInterrupt:
