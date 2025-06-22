@@ -5,6 +5,12 @@ import os
 import traceback
 import logging
 
+# Ensure the core package is importable when running this file directly
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+
 try:
     from PySide6.QtCore import Slot, QRect, Qt, QCoreApplication, QStandardPaths, QRectF
     from PySide6.QtWidgets import (
