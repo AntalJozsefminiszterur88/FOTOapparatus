@@ -89,7 +89,9 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(self.app_icon)
 
         self.setWindowTitle(self.BASE_WINDOW_TITLE)
-        base_width = int(550 * 0.7)
+        # A kicsit szélesebb alapméret biztosítja, hogy
+        # az "Indítás a Windows-zal" felirat ne törjön meg.
+        base_width = 600
         self.resize(base_width, 500)
         self.setMinimumWidth(base_width)
         self._current_width = base_width
