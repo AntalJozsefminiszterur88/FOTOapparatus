@@ -7,6 +7,7 @@ from datetime import datetime
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QScreen, QPainter, QFont
 from PySide6.QtCore import QRect, Qt, QStandardPaths
+import time
 # QStandardPaths itt nem közvetlenül használt, de a tesztblokkban igen
 
 # A QApplication példányt a main.py hozza létre.
@@ -56,7 +57,14 @@ def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_times
                 import platform
                 if platform.system() == "Windows":
                     import pygetwindow as gw
-                    win = gw.getWindowsWithTitle(window_title)[0]
+                    win = None
+                    while win is None:
+                        wins = gw.getWindowsWithTitle(window_title)
+                        if wins:
+                            win = wins[0]
+                        else:
+                            print(f"Várakozás az ablakra: '{window_title}'")
+                            time.sleep(1)
                     pixmap = screen.grabWindow(int(win._hWnd))
                 else:
                     pixmap = screen.grabWindow(0, capture_rect.x(), capture_rect.y(), capture_rect.width(), capture_rect.height())
