@@ -2,12 +2,21 @@
 
 import sys
 import os
-from PySide6.QtCore import QCoreApplication
-from PySide6.QtWidgets import QApplication
-# --- ÚJ IMPORT ---
-from PySide6.QtNetwork import QLocalSocket, QLocalServer
-# -----------------
 import logging
+
+try:
+    from PySide6.QtCore import QCoreApplication
+    from PySide6.QtWidgets import QApplication
+    # --- ÚJ IMPORT ---
+    from PySide6.QtNetwork import QLocalSocket, QLocalServer
+    # -----------------
+except ImportError as exc:  # pragma: no cover - dependency check
+    print(
+        "HIBA: A PySide6 csomag nem található. "
+        "Telepítse a következő paranccsal: pip install PySide6",
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from exc
 
 try:
     from gui.main_window import MainWindow
