@@ -81,6 +81,23 @@ def take_screenshot(
                             time.sleep(1)
 
                     try:
+                        if win.isMinimized:
+                            try:
+                                win.restore()
+                            except Exception as restore_err:
+                                print(
+                                    f"Figyelmeztetés: nem sikerült visszaállítani az ablakot: {restore_err}",
+                                    file=sys.stderr,
+                                )
+                        win.activate()
+                        time.sleep(0.2)
+                    except Exception as activate_err:
+                        print(
+                            f"Figyelmeztetés: nem sikerült aktiválni az ablakot: {activate_err}",
+                            file=sys.stderr,
+                        )
+
+                    try:
                         # Csak az ablak tartalmát ragadjuk meg, nem változtatjuk meg az állapotát
                         pixmap = screen.grabWindow(int(win._hWnd))
                     except Exception as e:
