@@ -5,15 +5,24 @@ import sys
 from datetime import datetime
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QScreen, QPainter, QFont
+from PySide6.QtGui import QScreen, QPainter, QFont, QPixmap
 from PySide6.QtCore import QRect, Qt, QStandardPaths
 import time
+
 # QStandardPaths itt nem közvetlenül használt, de a tesztblokkban igen
 
 # A QApplication példányt a main.py hozza létre.
 # Ennek a modulnak arra kell támaszkodnia.
 
-def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_timestamp=False, timestamp_position="top-left", window_title=""):
+
+def take_screenshot(
+    save_directory,
+    filename_prefix="Kép",
+    area=None,
+    add_timestamp=False,
+    timestamp_position="top-left",
+    window_title="",
+):
     """
     Képernyőképet készít a megadott területről vagy a teljes elsődleges képernyőről.
 
@@ -32,8 +41,11 @@ def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_times
     """
     app = QApplication.instance()
     if not app:
-        print("HIBA: QApplication.instance() nem található a screenshot_taker modulban. "
-              "Az alkalmazást a main.py-ból kell indítani, amely létrehozza a QApplication-t.", file=sys.stderr)
+        print(
+            "HIBA: QApplication.instance() nem található a screenshot_taker modulban. "
+            "Az alkalmazást a main.py-ból kell indítani, amely létrehozza a QApplication-t.",
+            file=sys.stderr,
+        )
         return None
 
     screen = QApplication.primaryScreen()
@@ -55,8 +67,10 @@ def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_times
         if window_title:
             try:
                 import platform
+
                 if platform.system() == "Windows":
                     import pygetwindow as gw
+
                     win = None
                     while win is None:
                         wins = gw.getWindowsWithTitle(window_title)
@@ -65,18 +79,58 @@ def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_times
                         else:
                             print(f"Várakozás az ablakra: '{window_title}'")
                             time.sleep(1)
-                    pixmap = screen.grabWindow(int(win._hWnd))
+
+                    try:
+                        win.restore()
+                        win.activate()
+                    except Exception:
+                        pass
+
+                    try:
+                        from PIL.ImageQt import ImageQt
+                        import pyautogui
+
+                        img = pyautogui.screenshot(region=(win.left, win.top, win.width, win.height))
+                        pixmap = QPixmap.fromImage(ImageQt(img))
+                    except Exception as e:
+                        print(
+                            f"Figyelmeztetés: pyautogui sikertelen, Qt grabWindow hasznalata: {e}",
+                            file=sys.stderr,
+                        )
+                        pixmap = screen.grabWindow(int(win._hWnd))
                 else:
-                    pixmap = screen.grabWindow(0, capture_rect.x(), capture_rect.y(), capture_rect.width(), capture_rect.height())
+                    pixmap = screen.grabWindow(
+                        0,
+                        capture_rect.x(),
+                        capture_rect.y(),
+                        capture_rect.width(),
+                        capture_rect.height(),
+                    )
             except Exception as e:
-                print(f"Figyelmeztetés: nem sikerült a(z) '{window_title}' ablak rögzítése: {e}", file=sys.stderr)
-                pixmap = screen.grabWindow(0, capture_rect.x(), capture_rect.y(), capture_rect.width(), capture_rect.height())
+                print(
+                    f"Figyelmeztetés: nem sikerült a(z) '{window_title}' ablak rögzítése: {e}",
+                    file=sys.stderr,
+                )
+                pixmap = screen.grabWindow(
+                    0,
+                    capture_rect.x(),
+                    capture_rect.y(),
+                    capture_rect.width(),
+                    capture_rect.height(),
+                )
         else:
-            pixmap = screen.grabWindow(0, capture_rect.x(), capture_rect.y(),
-                                   capture_rect.width(), capture_rect.height())
+            pixmap = screen.grabWindow(
+                0,
+                capture_rect.x(),
+                capture_rect.y(),
+                capture_rect.width(),
+                capture_rect.height(),
+            )
 
         if pixmap.isNull():
-            print("HIBA: Nem sikerült rögzíteni a képernyőt (grabWindow üres pixmap-et adott vissza).", file=sys.stderr)
+            print(
+                "HIBA: Nem sikerült rögzíteni a képernyőt (grabWindow üres pixmap-et adott vissza).", file=sys.stderr
+            )
             return None
 
         os.makedirs(save_directory, exist_ok=True)
@@ -105,7 +159,7 @@ def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_times
         # A kettőspont használata Windows rendszeren problémát okozhat,
         # ezért az időrészeket kötőjellel választjuk el.
         timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M")
-        
+
         filename = f"{filename_prefix}_{timestamp_for_filename}.png"
         # Ha a prefixet el szeretnéd hagyni, akkor:
         # filename = f"{timestamp_for_filename}.png"
@@ -115,7 +169,7 @@ def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_times
 
         if pixmap.save(save_path, "png"):
             # Sikeres mentés esetén ez az üzenet továbbra is hasznos lehet
-            print(f"Képernyőkép sikeresen elmentve: {save_path}") 
+            print(f"Képernyőkép sikeresen elmentve: {save_path}")
             return save_path
         else:
             print(f"HIBA: Nem sikerült elmenteni a képernyőképet ide: {save_path}", file=sys.stderr)
@@ -127,15 +181,17 @@ def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_times
     except Exception as e:
         print(f"Váratlan HIBA történt a képernyőkép készítésekor: {e}", file=sys.stderr)
         import traceback
-        traceback.print_exc(file=sys.stderr) # Részletesebb hiba kiírása
+
+        traceback.print_exc(file=sys.stderr)  # Részletesebb hiba kiírása
         return None
+
 
 # --- Tesztelési rész ---
 if __name__ == "__main__":
     print("\n--- Képernyőkép Készítő Modul Teszt ---")
     print("Figyelem: Ezt a modult önállóan futtatva a take_screenshot funkció nem fog működni,")
     print("mivel QApplication példányra van szüksége, amit a fő alkalmazás (main.py) hoz létre.")
-    
+
     # Példa, hogyan nézne ki egy generált fájlnév (QApplication nélkül ez a rész nem fut le helyesen)
     try:
         # Csak a fájlnév generálási logika tesztelése (nem készít képet)
