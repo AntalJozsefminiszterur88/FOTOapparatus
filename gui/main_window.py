@@ -89,7 +89,10 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(self.app_icon)
 
         self.setWindowTitle(self.BASE_WINDOW_TITLE)
-        self.resize(550, 500)
+        base_width = int(550 * 0.7)
+        self.resize(base_width, 500)
+        self.setMinimumWidth(base_width)
+        self._current_width = base_width
 
         self.config_manager = ConfigManager()
         self.scheduler = Scheduler()
@@ -307,6 +310,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _handle_capture_type_change(self):
+        prev_width = self._current_width
         capture_type = "program" if self.radio_capture_program.isChecked() else "screenshot"
         size_enabled = capture_type == "screenshot"
         window_enabled = capture_type == "program"
@@ -319,6 +323,7 @@ class MainWindow(QMainWindow):
         self.window_selector.setStyleSheet("" if window_enabled else f"background-color: {color_inactive};")
         self.settings["capture_type"] = capture_type
         self._mark_dirty()
+        self.resize(prev_width, self.height())
 
     def _update_ui_from_settings(self):
         logger.info("Metódus hívás: _update_ui_from_settings. Betöltött self.settings:")
@@ -490,6 +495,10 @@ class MainWindow(QMainWindow):
              QMessageBox.warning(self, "Figyelmeztetés", f"Hiba: {e}\nAlapértelmezett értékek lesznek használva.")
              self.settings = self.config_manager.get_default_settings()
         logger.info(f"Betöltött beállítások (_load_settings végén): {self.settings}")
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._current_width = self.width()
 
     def closeEvent(self, event):
         logger.debug("Bezárási esemény (closeEvent) - Tálcára helyezés.")
