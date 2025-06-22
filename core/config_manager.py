@@ -85,6 +85,7 @@ class ConfigManager:
         return {
             # Ez most a Képek mappába mutat alapértelmezetten
             "save_path": default_screenshot_save_path,
+            "capture_type": "screenshot",
             "screenshot_mode": "fullscreen",
             "custom_area": {"x": 0, "y": 0, "width": 100, "height": 100},
             "schedules": [],

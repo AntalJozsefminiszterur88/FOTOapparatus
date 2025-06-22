@@ -63,13 +63,16 @@ class Scheduler:
 
         schedules = self.current_settings.get("schedules", [])
         save_path = self.current_settings.get("save_path", ".")
+        capture_type = self.current_settings.get("capture_type", "screenshot")
         mode = self.current_settings.get("screenshot_mode", "fullscreen")
         custom_area_dict = self.current_settings.get("custom_area", None)
         target_window = self.current_settings.get("target_window", "")
         include_timestamp = self.current_settings.get("include_timestamp", True)
         timestamp_position = self.current_settings.get("timestamp_position", "top-left")
 
-        logger.info(f"Feladatok ütemezése {len(schedules)} szabály alapján. Mentési hely: {save_path}, Mód: {mode}")
+        logger.info(
+            f"Feladatok ütemezése {len(schedules)} szabály alapján. Mentési hely: {save_path}, Típus: {capture_type}, Mód: {mode}"
+        )
 
         area_arg = None
         if mode == "custom" and custom_area_dict:
@@ -106,17 +109,28 @@ class Scheduler:
                 trigger = CronTrigger(day_of_week=days_str, hour=hour, minute=minute)
 
                 # Feladat hozzáadása az ütemezőhöz
-                job_id = f"screenshot_job_{i}"
-                self.scheduler.add_job(
-                    take_screenshot,
-                    trigger=trigger,
-                    args=[save_path, "Kép", area_arg, include_timestamp, timestamp_position, target_window],
-                    id=job_id,
-                    name=f"Kép at {time_str} on {days_str}",
-                    replace_existing=True,
-                )
+                job_id = f"capture_job_{i}"
+                if capture_type == "photo":
+                    from .photo_taker import take_photo
+                    self.scheduler.add_job(
+                        take_photo,
+                        trigger=trigger,
+                        args=[save_path, "Foto"],
+                        id=job_id,
+                        name=f"Foto at {time_str} on {days_str}",
+                        replace_existing=True,
+                    )
+                else:
+                    self.scheduler.add_job(
+                        take_screenshot,
+                        trigger=trigger,
+                        args=[save_path, "Kép", area_arg, include_timestamp, timestamp_position, target_window],
+                        id=job_id,
+                        name=f"Kép at {time_str} on {days_str}",
+                        replace_existing=True,
+                    )
                 logger.info(
-                    f"Feladat hozzáadva (ID: {job_id}): Idő={time_str}, Napok={days_str}, Terület={area_arg if area_arg else 'Fullscreen'}, Ablak='{target_window}'"
+                    f"Feladat hozzáadva (ID: {job_id}): Idő={time_str}, Napok={days_str}, Típus={capture_type}"
                 )
 
             except (ValueError, KeyError, Exception) as e:
