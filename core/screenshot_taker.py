@@ -81,23 +81,21 @@ def take_screenshot(
                             time.sleep(1)
 
                     try:
-                        win.restore()
-                        win.activate()
-                    except Exception:
-                        pass
-
-                    try:
-                        from PIL.ImageQt import ImageQt
-                        import pyautogui
-
-                        img = pyautogui.screenshot(region=(win.left, win.top, win.width, win.height))
-                        pixmap = QPixmap.fromImage(ImageQt(img))
+                        # Csak az ablak tartalmát ragadjuk meg, nem változtatjuk meg az állapotát
+                        pixmap = screen.grabWindow(int(win._hWnd))
                     except Exception as e:
                         print(
-                            f"Figyelmeztetés: pyautogui sikertelen, Qt grabWindow hasznalata: {e}",
+                            f"Figyelmeztetés: Qt grabWindow sikertelen, pyautogui hasznalata: {e}",
                             file=sys.stderr,
                         )
-                        pixmap = screen.grabWindow(int(win._hWnd))
+                        try:
+                            from PIL.ImageQt import ImageQt
+                            import pyautogui
+
+                            img = pyautogui.screenshot(region=(win.left, win.top, win.width, win.height))
+                            pixmap = QPixmap.fromImage(ImageQt(img))
+                        except Exception:
+                            raise
                 else:
                     pixmap = screen.grabWindow(
                         0,
