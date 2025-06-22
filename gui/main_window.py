@@ -14,6 +14,7 @@ try:
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
     from .screenshot_size_widget import ScreenshotSizeWidget
+    from .window_selector_widget import WindowSelectorWidget
     from .timestamp_position_widget import TimestampPositionWidget
     from .timer_list_widget import TimerListWidget
     from .selection_overlay import SelectionOverlay
@@ -221,6 +222,9 @@ class MainWindow(QMainWindow):
         self.size_widget = ScreenshotSizeWidget()
         self.main_layout.addWidget(self.size_widget)
 
+        self.window_selector = WindowSelectorWidget()
+        self.main_layout.addWidget(self.window_selector)
+
         self.timestamp_widget = TimestampPositionWidget()
         self.timestamp_checkbox = self.timestamp_widget.include_checkbox
         self.main_layout.addWidget(self.timestamp_widget)
@@ -259,6 +263,8 @@ class MainWindow(QMainWindow):
         logger.debug("Jel-slot kapcsolatok beállítása...")
         self.size_widget.mode_changed.connect(self._handle_mode_change)
         self.size_widget.select_area_requested.connect(self._start_area_selection)
+        if hasattr(self, 'window_selector'):
+            self.window_selector.selection_changed.connect(lambda _: self._mark_dirty())
         self.timer_list.list_changed.connect(self._mark_dirty)
         self.save_button.clicked.connect(self.save_settings)
         self.folder_button.clicked.connect(self.select_save_folder)
@@ -290,6 +296,9 @@ class MainWindow(QMainWindow):
         save_path_loaded = self.settings.get("save_path", "")
         logger.info(f"UI Update -> FolderLabel: mentési útvonal='{save_path_loaded}'")
         self._update_folder_label(save_path_loaded)
+        if hasattr(self, 'window_selector'):
+            selected_window = self.settings.get("target_window", "")
+            self.window_selector.set_selected_title(selected_window)
         if hasattr(self, 'timestamp_widget'):
             ts_enabled = self.settings.get("include_timestamp", True)
             ts_position = self.settings.get("timestamp_position", "top-left")
@@ -406,6 +415,7 @@ class MainWindow(QMainWindow):
             "save_path": save_path,
             "screenshot_mode": mode,
             "custom_area": custom_area_dict_to_save,
+            "target_window": self.window_selector.get_selected_title() if hasattr(self, 'window_selector') else "",
             "schedules": self.timer_list.get_all_settings(),
             "autostart_preferred": self.settings.get("autostart_preferred", False),
             "include_timestamp": self.timestamp_checkbox.isChecked() if hasattr(self, "timestamp_checkbox") else True,

@@ -88,6 +88,7 @@ class ConfigManager:
             "screenshot_mode": "fullscreen",
             "custom_area": {"x": 0, "y": 0, "width": 100, "height": 100},
             "schedules": [],
+            "target_window": "",
             "include_timestamp": True,
             "timestamp_position": "top-left",
         }

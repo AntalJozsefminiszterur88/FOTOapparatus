@@ -65,6 +65,7 @@ class Scheduler:
         save_path = self.current_settings.get("save_path", ".")
         mode = self.current_settings.get("screenshot_mode", "fullscreen")
         custom_area_dict = self.current_settings.get("custom_area", None)
+        target_window = self.current_settings.get("target_window", "")
         include_timestamp = self.current_settings.get("include_timestamp", True)
         timestamp_position = self.current_settings.get("timestamp_position", "top-left")
 
@@ -109,12 +110,14 @@ class Scheduler:
                 self.scheduler.add_job(
                     take_screenshot,
                     trigger=trigger,
-                    args=[save_path, "Kép", area_arg, include_timestamp, timestamp_position],
+                    args=[save_path, "Kép", area_arg, include_timestamp, timestamp_position, target_window],
                     id=job_id,
                     name=f"Kép at {time_str} on {days_str}",
                     replace_existing=True,
                 )
-                logger.info(f"Feladat hozzáadva (ID: {job_id}): Idő={time_str}, Napok={days_str}, Terület={area_arg if area_arg else 'Fullscreen'}")
+                logger.info(
+                    f"Feladat hozzáadva (ID: {job_id}): Idő={time_str}, Napok={days_str}, Terület={area_arg if area_arg else 'Fullscreen'}, Ablak='{target_window}'"
+                )
 
             except (ValueError, KeyError, Exception) as e:
                 logger.error(f"Hiba az ütemezési szabály feldolgozása közben: {schedule_item} - Hiba: {e}")

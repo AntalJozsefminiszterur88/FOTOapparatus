@@ -12,7 +12,7 @@ from PySide6.QtCore import QRect, Qt, QStandardPaths
 # A QApplication példányt a main.py hozza létre.
 # Ennek a modulnak arra kell támaszkodnia.
 
-def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_timestamp=False, timestamp_position="top-left"):
+def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_timestamp=False, timestamp_position="top-left", window_title=""):
     """
     Képernyőképet készít a megadott területről vagy a teljes elsődleges képernyőről.
 
@@ -24,6 +24,7 @@ def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_times
         add_timestamp (bool, optional): Ha True, a képre ráírja az aktuális dátumot.
         timestamp_position (str, optional): A felirat helye ('top-left', 'top-right',
                                 'bottom-left', 'bottom-right').
+        window_title (str, optional): Ha meg van adva, az adott című ablakról készül kép.
 
     Returns:
         str | None: A mentett kép teljes elérési útja siker esetén, None hiba esetén.
@@ -45,12 +46,25 @@ def take_screenshot(save_directory, filename_prefix="Kép", area=None, add_times
     else:
         capture_rect = screen.geometry()
 
-    if capture_rect.isEmpty():
-         print(f"HIBA: Érvénytelen rögzítési terület a screenshot_taker-ben: {capture_rect}", file=sys.stderr)
-         return None
+    if capture_rect.isEmpty() and not window_title:
+        print(f"HIBA: Érvénytelen rögzítési terület a screenshot_taker-ben: {capture_rect}", file=sys.stderr)
+        return None
 
     try:
-        pixmap = screen.grabWindow(0, capture_rect.x(), capture_rect.y(),
+        if window_title:
+            try:
+                import platform
+                if platform.system() == "Windows":
+                    import pygetwindow as gw
+                    win = gw.getWindowsWithTitle(window_title)[0]
+                    pixmap = screen.grabWindow(int(win._hWnd))
+                else:
+                    pixmap = screen.grabWindow(0, capture_rect.x(), capture_rect.y(), capture_rect.width(), capture_rect.height())
+            except Exception as e:
+                print(f"Figyelmeztetés: nem sikerült a(z) '{window_title}' ablak rögzítése: {e}", file=sys.stderr)
+                pixmap = screen.grabWindow(0, capture_rect.x(), capture_rect.y(), capture_rect.width(), capture_rect.height())
+        else:
+            pixmap = screen.grabWindow(0, capture_rect.x(), capture_rect.y(),
                                    capture_rect.width(), capture_rect.height())
 
         if pixmap.isNull():
