@@ -57,6 +57,7 @@ def main():
                         include_timestamp,
                         timestamp_position,
                         settings.get("target_window", ""),
+                        capture_type,
                     )
                     executed.add(key)
             time.sleep(60)

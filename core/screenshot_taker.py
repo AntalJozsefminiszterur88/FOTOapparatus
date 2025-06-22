@@ -1,230 +1,214 @@
 # core/screenshot_taker.py
 
+"""Screenshot utility using Pillow and pywin32.
+
+This module provides ``take_screenshot`` which can capture either the full
+screen (or a custom region) or the content of a specific application window
+without activating it.  On Windows the ``PrintWindow`` API is used so that
+background windows are captured correctly.  The function still saves the
+image to disk like the old implementation but returns the resulting
+``PIL.Image.Image`` object for further processing if needed.
+"""
+
+from __future__ import annotations
+
 import os
-import sys
 from datetime import datetime
+from typing import Optional
 
-from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QScreen, QPainter, QFont, QPixmap
-from PySide6.QtCore import QRect, Qt, QStandardPaths
-import time
+from PIL import Image, ImageDraw, ImageFont, ImageGrab
 
-# QStandardPaths itt nem közvetlenül használt, de a tesztblokkban igen
+# Only import pywin32 modules on Windows
+import platform
 
-# A QApplication példányt a main.py hozza létre.
-# Ennek a modulnak arra kell támaszkodnia.
+if platform.system() == "Windows":
+    import win32con
+    import win32gui
+    import win32ui
+
+
+def _capture_window(title: str) -> Optional[Image.Image]:
+    """Capture a window by title using the PrintWindow API.
+
+    Parameters
+    ----------
+    title: str
+        Title of the window to capture.  The first matching visible window is
+        used.  Matching is case-insensitive and substring based.
+
+    Returns
+    -------
+    PIL.Image.Image or None
+        The captured image or ``None`` if the window was not found or
+        ``PrintWindow`` failed.
+    """
+    if platform.system() != "Windows":
+        return None
+
+    hwnd = None
+
+    def _enum(hwnd_in, lparam):
+        nonlocal hwnd
+        if win32gui.IsWindowVisible(hwnd_in):
+            window_text = win32gui.GetWindowText(hwnd_in)
+            if title.lower() in window_text.lower():
+                hwnd = hwnd_in
+                return False  # stop enumeration
+        return True
+
+    win32gui.EnumWindows(_enum, None)
+    if not hwnd:
+        return None
+
+    left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+    width = right - left
+    height = bottom - top
+
+    hwnd_dc = win32gui.GetWindowDC(hwnd)
+    mfc_dc = win32ui.CreateDCFromHandle(hwnd_dc)
+    save_dc = mfc_dc.CreateCompatibleDC()
+
+    bitmap = win32ui.CreateBitmap()
+    bitmap.CreateCompatibleBitmap(mfc_dc, width, height)
+    save_dc.SelectObject(bitmap)
+
+    result = win32gui.PrintWindow(hwnd, save_dc.GetSafeHdc(), 0)
+
+    bmpinfo = bitmap.GetInfo()
+    bmpstr = bitmap.GetBitmapBits(True)
+    img = Image.frombuffer(
+        "RGB",
+        (bmpinfo["bmWidth"], bmpinfo["bmHeight"]),
+        bmpstr,
+        "raw",
+        "BGRX",
+        0,
+        1,
+    )
+
+    win32gui.DeleteObject(bitmap.GetHandle())
+    save_dc.DeleteDC()
+    mfc_dc.DeleteDC()
+    win32gui.ReleaseDC(hwnd, hwnd_dc)
+
+    if result != 1:
+        return None
+    return img
+
+
+def _capture_screen(region: Optional[tuple[int, int, int, int]] = None) -> Image.Image:
+    """Capture the full screen or a region using Pillow."""
+    return ImageGrab.grab(bbox=region)
+
+
+def _add_timestamp(img: Image.Image, position: str) -> None:
+    """Draw timestamp onto the image in-place."""
+    draw = ImageDraw.Draw(img)
+    timestamp_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        font = ImageFont.truetype("arial.ttf", 14)
+    except Exception:
+        font = ImageFont.load_default()
+
+    text_w, text_h = draw.textsize(timestamp_text, font=font)
+    margin = 10
+    x = margin
+    y = margin
+    if position == "top-right":
+        x = img.width - text_w - margin
+    elif position == "bottom-left":
+        y = img.height - text_h - margin
+    elif position == "bottom-right":
+        x = img.width - text_w - margin
+        y = img.height - text_h - margin
+    draw.text((x, y), timestamp_text, fill="white", font=font)
 
 
 def take_screenshot(
-    save_directory,
-    filename_prefix="Kép",
-    area=None,
-    add_timestamp=False,
-    timestamp_position="top-left",
-    window_title="",
-):
+    save_directory: str,
+    filename_prefix: str = "Kép",
+    area: Optional[object] = None,
+    add_timestamp: bool = False,
+    timestamp_position: str = "top-left",
+    window_title: str = "",
+    capture_type: str = "screenshot",
+) -> Optional[Image.Image]:
+    """Capture a screenshot or a program window.
+
+    Parameters
+    ----------
+    save_directory: str
+        Directory where the image will be saved.
+    filename_prefix: str
+        Prefix for the generated filename.
+    area: QRect or None
+        Region to capture when ``capture_type`` is ``"screenshot"``.  When using
+        PySide6 the caller usually provides a ``QRect``.  The coordinates are
+        interpreted in screen coordinates.
+    add_timestamp: bool
+        Whether to draw the current timestamp onto the image.
+    timestamp_position: str
+        One of ``"top-left"``, ``"top-right"``, ``"bottom-left"`` or
+        ``"bottom-right"``.
+    window_title: str
+        Title of the window to capture when ``capture_type`` is ``"program"``.
+    capture_type: str
+        Either ``"screenshot"`` or ``"program"``.  ``window_title`` can still be
+        used for backwards compatibility – if given, ``capture_type`` is treated
+        as ``"program"``.
+
+    Returns
+    -------
+    PIL.Image.Image or None
+        The captured image, or ``None`` on error.
     """
-    Képernyőképet készít a megadott területről vagy a teljes elsődleges képernyőről.
 
-    Args:
-        save_directory (str): A könyvtár, ahova a képet menteni kell.
-        filename_prefix (str, optional): A fájlnév előtagja. Alapértelmezett: "Kép".
-        area (QRect, optional): A rögzítendő terület. Ha None, a teljes elsődleges
-                                képernyőt rögzíti.
-        add_timestamp (bool, optional): Ha True, a képre ráírja az aktuális dátumot.
-        timestamp_position (str, optional): A felirat helye ('top-left', 'top-right',
-                                'bottom-left', 'bottom-right').
-        window_title (str, optional): Ha meg van adva, az adott című ablakról készül kép.
+    if window_title and capture_type != "program":
+        capture_type = "program"
 
-    Returns:
-        str | None: A mentett kép teljes elérési útja siker esetén, None hiba esetén.
-    """
-    app = QApplication.instance()
-    if not app:
-        print(
-            "HIBA: QApplication.instance() nem található a screenshot_taker modulban. "
-            "Az alkalmazást a main.py-ból kell indítani, amely létrehozza a QApplication-t.",
-            file=sys.stderr,
-        )
-        return None
+    region = None
+    if capture_type == "screenshot" and area is not None:
+        try:
+            from PySide6.QtCore import QRect
 
-    screen = QApplication.primaryScreen()
-    if not screen:
-        print("HIBA: Nem sikerült lekérni az elsődleges képernyőt a screenshot_taker modulban.", file=sys.stderr)
-        return None
+            if isinstance(area, QRect):
+                region = (area.x(), area.y(), area.x() + area.width(), area.y() + area.height())
+            else:
+                # assume tuple-like (x, y, w, h)
+                region = (int(area[0]), int(area[1]), int(area[0]) + int(area[2]), int(area[1]) + int(area[3]))
+        except Exception:
+            pass
 
-    capture_rect = QRect()
-    if area and isinstance(area, QRect) and area.isValid():
-        capture_rect = area
+    if capture_type == "program":
+        img = _capture_window(window_title)
+        if img is None:
+            # Fallback to full screen capture if window not found
+            img = _capture_screen(None)
     else:
-        capture_rect = screen.geometry()
+        img = _capture_screen(region)
 
-    if capture_rect.isEmpty() and not window_title:
-        print(f"HIBA: Érvénytelen rögzítési terület a screenshot_taker-ben: {capture_rect}", file=sys.stderr)
+    if img is None:
         return None
+
+    if add_timestamp:
+        _add_timestamp(img, timestamp_position)
+
+    os.makedirs(save_directory, exist_ok=True)
+    timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M")
+    filename = f"{filename_prefix}_{timestamp_for_filename}.png"
+    save_path = os.path.join(save_directory, filename)
 
     try:
-        if window_title:
-            try:
-                import platform
-
-                if platform.system() == "Windows":
-                    import pygetwindow as gw
-
-                    win = None
-                    while win is None:
-                        wins = gw.getWindowsWithTitle(window_title)
-                        if wins:
-                            win = wins[0]
-                        else:
-                            print(f"Várakozás az ablakra: '{window_title}'")
-                            time.sleep(1)
-
-                    try:
-                        if win.isMinimized:
-                            try:
-                                win.restore()
-                            except Exception as restore_err:
-                                print(
-                                    f"Figyelmeztetés: nem sikerült visszaállítani az ablakot: {restore_err}",
-                                    file=sys.stderr,
-                                )
-                        win.activate()
-                        time.sleep(0.2)
-                    except Exception as activate_err:
-                        print(
-                            f"Figyelmeztetés: nem sikerült aktiválni az ablakot: {activate_err}",
-                            file=sys.stderr,
-                        )
-
-                    try:
-                        # Csak az ablak tartalmát ragadjuk meg, nem változtatjuk meg az állapotát
-                        pixmap = screen.grabWindow(int(win._hWnd))
-                    except Exception as e:
-                        print(
-                            f"Figyelmeztetés: Qt grabWindow sikertelen, pyautogui hasznalata: {e}",
-                            file=sys.stderr,
-                        )
-                        try:
-                            from PIL.ImageQt import ImageQt
-                            import pyautogui
-
-                            img = pyautogui.screenshot(region=(win.left, win.top, win.width, win.height))
-                            pixmap = QPixmap.fromImage(ImageQt(img))
-                        except Exception:
-                            raise
-                else:
-                    pixmap = screen.grabWindow(
-                        0,
-                        capture_rect.x(),
-                        capture_rect.y(),
-                        capture_rect.width(),
-                        capture_rect.height(),
-                    )
-            except Exception as e:
-                print(
-                    f"Figyelmeztetés: nem sikerült a(z) '{window_title}' ablak rögzítése: {e}",
-                    file=sys.stderr,
-                )
-                pixmap = screen.grabWindow(
-                    0,
-                    capture_rect.x(),
-                    capture_rect.y(),
-                    capture_rect.width(),
-                    capture_rect.height(),
-                )
-        else:
-            pixmap = screen.grabWindow(
-                0,
-                capture_rect.x(),
-                capture_rect.y(),
-                capture_rect.width(),
-                capture_rect.height(),
-            )
-
-        if pixmap.isNull():
-            print(
-                "HIBA: Nem sikerült rögzíteni a képernyőt (grabWindow üres pixmap-et adott vissza).", file=sys.stderr
-            )
-            return None
-
-        os.makedirs(save_directory, exist_ok=True)
-
-        if add_timestamp:
-            painter = QPainter(pixmap)
-            painter.setPen(Qt.GlobalColor.white)
-            painter.setFont(QFont("Arial", 14))
-            timestamp_text = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
-            if timestamp_position == "top-right":
-                alignment = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop
-            elif timestamp_position == "bottom-left":
-                alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom
-            elif timestamp_position == "bottom-right":
-                alignment = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom
-            painter.drawText(
-                pixmap.rect().adjusted(10, 10, -10, -10),
-                alignment,
-                timestamp_text,
-            )
-            painter.end()
-
-        # --- MÓDOSÍTOTT FÁJLNÉV FORMÁTUM ---
-        # Kért formátum: Kép_YYYY_MM_DD_HH-MM
-        # A kettőspont használata Windows rendszeren problémát okozhat,
-        # ezért az időrészeket kötőjellel választjuk el.
-        timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M")
-
-        filename = f"{filename_prefix}_{timestamp_for_filename}.png"
-        # Ha a prefixet el szeretnéd hagyni, akkor:
-        # filename = f"{timestamp_for_filename}.png"
-        # ------------------------------------
-
-        save_path = os.path.join(save_directory, filename)
-
-        if pixmap.save(save_path, "png"):
-            # Sikeres mentés esetén ez az üzenet továbbra is hasznos lehet
-            print(f"Képernyőkép sikeresen elmentve: {save_path}")
-            return save_path
-        else:
-            print(f"HIBA: Nem sikerült elmenteni a képernyőképet ide: {save_path}", file=sys.stderr)
-            return None
-
-    except OSError as e:
-        print(f"HIBA a könyvtár létrehozásakor ({save_directory}): {e}", file=sys.stderr)
-        return None
-    except Exception as e:
-        print(f"Váratlan HIBA történt a képernyőkép készítésekor: {e}", file=sys.stderr)
-        import traceback
-
-        traceback.print_exc(file=sys.stderr)  # Részletesebb hiba kiírása
+        img.save(save_path)
+        print(f"Képernyőkép sikeresen elmentve: {save_path}")
+    except Exception as exc:  # pragma: no cover - logging only
+        print(f"HIBA: Nem sikerült elmenteni a képernyőképet ide: {save_path} - {exc}")
         return None
 
+    return img
 
-# --- Tesztelési rész ---
+
 if __name__ == "__main__":
-    print("\n--- Képernyőkép Készítő Modul Teszt ---")
-    print("Figyelem: Ezt a modult önállóan futtatva a take_screenshot funkció nem fog működni,")
-    print("mivel QApplication példányra van szüksége, amit a fő alkalmazás (main.py) hoz létre.")
-
-    # Példa, hogyan nézne ki egy generált fájlnév (QApplication nélkül ez a rész nem fut le helyesen)
-    try:
-        # Csak a fájlnév generálási logika tesztelése (nem készít képet)
-        prefix_test = "test_prefix"
-        ts_test = datetime.now().strftime("%Y_%m_%d_%H-%M")
-        fn_test = f"{prefix_test}_{ts_test}.png"
-        print(f"\nPélda generált fájlnév ({prefix_test} prefixszel): {fn_test}")
-
-        # pictures_location = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.PicturesLocation)
-        # if pictures_location:
-        #      test_dir = os.path.join(pictures_location, "FotoApp_ScreenshotTaker_Tests")
-        #      print(f"Tesztkönyvtár lenne (ha működne QApplication-nel): {test_dir}")
-        #      # Itt lehetne egy dummy QApplication-t létrehozni csak a teszthez, ha nagyon szükséges lenne
-        #      # pl. app_test = QApplication.instance(); if not app_test: app_test = QApplication([])
-        #      # de a modul fő célja nem az önálló futtatás.
-        # else:
-        #      print("Nem sikerült lekérni a Képek mappát (QApplication hiányzik?).")
-    except Exception as e:
-        print(f"Hiba a tesztblokkban (valószínűleg QApplication hiánya miatt): {e}")
-
-    print("\n--- Teszt vége ---")
+    # Simple manual test when running this file directly
+    out_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+    take_screenshot(out_dir, capture_type="screenshot")
