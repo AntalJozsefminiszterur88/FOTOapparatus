@@ -238,9 +238,9 @@ class MainWindow(QMainWindow):
         self.capture_group = QGroupBox("Felvétel mód")
         capture_layout = QVBoxLayout(self.capture_group)
         self.radio_capture_screenshot = QRadioButton("Képernyőkép")
-        self.radio_capture_photo = QRadioButton("Fénykép")
+        self.radio_capture_program = QRadioButton("Programkép")
         capture_layout.addWidget(self.radio_capture_screenshot)
-        capture_layout.addWidget(self.radio_capture_photo)
+        capture_layout.addWidget(self.radio_capture_program)
         self.radio_capture_screenshot.setChecked(True)
         self.main_layout.addWidget(self.capture_group)
 
@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
         self.size_widget.mode_changed.connect(self._handle_mode_change)
         self.size_widget.select_area_requested.connect(self._start_area_selection)
         self.radio_capture_screenshot.toggled.connect(self._handle_capture_type_change)
-        self.radio_capture_photo.toggled.connect(self._handle_capture_type_change)
+        self.radio_capture_program.toggled.connect(self._handle_capture_type_change)
         if hasattr(self, 'window_selector'):
             self.window_selector.selection_changed.connect(lambda _: self._mark_dirty())
         self.timer_list.list_changed.connect(self._mark_dirty)
@@ -307,13 +307,16 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def _handle_capture_type_change(self):
-        capture_type = "photo" if self.radio_capture_photo.isChecked() else "screenshot"
-        widgets_enabled = capture_type == "screenshot"
-        self.size_widget.setEnabled(widgets_enabled)
-        self.window_selector.setEnabled(widgets_enabled)
+        capture_type = "program" if self.radio_capture_program.isChecked() else "screenshot"
+        size_enabled = capture_type == "screenshot"
+        window_enabled = capture_type == "program"
+        self.size_widget.setEnabled(size_enabled)
+        self.window_selector.setEnabled(window_enabled)
+        self.size_widget.setVisible(size_enabled)
+        self.window_selector.setVisible(window_enabled)
         color_inactive = "#555555"
-        self.size_widget.setStyleSheet("" if widgets_enabled else f"background-color: {color_inactive};")
-        self.window_selector.setStyleSheet("" if widgets_enabled else f"background-color: {color_inactive};")
+        self.size_widget.setStyleSheet("" if size_enabled else f"background-color: {color_inactive};")
+        self.window_selector.setStyleSheet("" if window_enabled else f"background-color: {color_inactive};")
         self.settings["capture_type"] = capture_type
         self._mark_dirty()
 
@@ -322,8 +325,8 @@ class MainWindow(QMainWindow):
         logger.info(self.settings)
         if not self.settings: logger.warning("Nincsenek beállítások a UI frissítéséhez."); return
         capture_loaded = self.settings.get("capture_type", "screenshot")
-        if capture_loaded == "photo":
-            self.radio_capture_photo.setChecked(True)
+        if capture_loaded == "program":
+            self.radio_capture_program.setChecked(True)
         else:
             self.radio_capture_screenshot.setChecked(True)
         self._handle_capture_type_change()
@@ -458,7 +461,7 @@ class MainWindow(QMainWindow):
 
         new_settings = {
             "save_path": save_path,
-            "capture_type": "photo" if self.radio_capture_photo.isChecked() else "screenshot",
+            "capture_type": "program" if self.radio_capture_program.isChecked() else "screenshot",
             "screenshot_mode": mode,
             "custom_area": custom_area_dict_to_save,
             "target_window": self.window_selector.get_selected_title() if hasattr(self, 'window_selector') else "",
