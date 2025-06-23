@@ -44,7 +44,7 @@ def main():
     app = QApplication(sys.argv)
     
     # --- A STÍLUS KIKÉNYSZERÍTÉSE ---
-    app.setStyle("windowsvista")
+    
     # ---------------------------------
 
     app.setQuitOnLastWindowClosed(False)
