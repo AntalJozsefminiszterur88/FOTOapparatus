@@ -25,6 +25,7 @@ pyinstaller ^
     --onefile ^
     --console ^
     --icon="assets/camera_icon.ico" ^
+    --hidden-import "gui.main_window" ^
     --add-data "assets;assets" ^
     main.py
 
