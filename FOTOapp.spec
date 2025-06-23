@@ -1,9 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
 
 
 a = Analysis(
     ['main.py'],
-    pathex=['C:\\Users\\vatib\\Projects\\FOTOapparatus'],
+    # Use the directory containing this spec file so the project can be built
+    # from any location
+    pathex=[os.path.dirname(os.path.abspath(__file__))],
     binaries=[],
     datas=[('assets', 'assets')],
     hiddenimports=['PySide6.QtNetwork', 'apscheduler.triggers.cron', 'apscheduler.jobstores.base', 'pygetwindow', 'win32gui', 'win32process'],
