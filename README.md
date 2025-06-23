@@ -26,7 +26,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-A `start.bat` egy egyszeru Windows parancsfajl a fejlesztoi inditashoz. A `build_exe.bat` a PyInstaller alapjan keszit futtathato EXE-t.
+A `start.bat` egy egyszeru Windows parancsfajl a fejlesztoi inditashoz. A `build_exe.bat` a PyInstaller alapjan keszit futtathato EXE-t. A script a `--console` opcióval építi a programot, így indításkor megjelenik a konzol ablak, ami segíti a hibák felderítését.
 
 ## Mappak
 

@@ -23,7 +23,7 @@ pyinstaller ^
     --name FOTOapp ^
     --noconfirm ^
     --onefile ^
-    --windowed ^
+    --console ^
     --icon="assets/camera_icon.ico" ^
     --add-data "assets;assets" ^
     main.py
