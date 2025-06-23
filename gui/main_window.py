@@ -115,8 +115,11 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         # Explicitly set background and text colors to ensure readability across
         # different OS themes
+        # Set a dark background on the main window and ensure all child widgets
+        # inherit white text so the UI remains readable on dark OS themes
         self.setStyleSheet(
-            "QMainWindow { background-color: #1f1f1f; color: white; }"
+            "QMainWindow { background-color: #1f1f1f; }"
+            " QWidget { color: white; }"
         )
         self.main_layout = QVBoxLayout(central_widget)
         central_widget.setLayout(self.main_layout)
