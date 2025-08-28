@@ -58,6 +58,11 @@ class ConfigManager:
             "target_window": "",
             "include_timestamp": True,
             "timestamp_position": "top-left",
+            "discord_settings": {
+                "stay_foreground": False,
+                "use_hotkey": False,
+                "hotkey_number": 1,
+            },
         }
 
     def load_settings(self):
@@ -69,7 +74,12 @@ class ConfigManager:
             # Biztosítjuk, hogy minden kulcs létezzen
             default_settings = self.get_default_settings()
             for key, value in default_settings.items():
-                settings.setdefault(key, value)
+                if isinstance(value, dict):
+                    settings.setdefault(key, {})
+                    for sub_key, sub_val in value.items():
+                        settings[key].setdefault(sub_key, sub_val)
+                else:
+                    settings.setdefault(key, value)
             return settings
         except (FileNotFoundError, json.JSONDecodeError, Exception) as e:
             print(f"Hiba a config betöltésekor ({self.config_path}): {e}", file=sys.stderr)

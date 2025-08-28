@@ -31,6 +31,7 @@ try:
         QStyle,
         QGroupBox,
         QRadioButton,
+        QDialog,
     )
     from PySide6.QtGui import QIcon, QAction
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
@@ -40,6 +41,7 @@ try:
     from .timestamp_position_widget import TimestampPositionWidget
     from .timer_list_widget import TimerListWidget
     from .selection_overlay import SelectionOverlay
+    from .discord_settings_dialog import DiscordSettingsDialog
     from core.config_manager import ConfigManager
     from core.scheduler import Scheduler
     from core import autostart_manager
@@ -111,6 +113,11 @@ class MainWindow(QMainWindow):
         self.local_server = None
 
         self._load_settings()
+        self.discord_settings = self.settings.get(
+            "discord_settings",
+            {"stay_foreground": False, "use_hotkey": False, "hotkey_number": 1},
+        )
+        self.settings["discord_settings"] = self.discord_settings
 
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
@@ -311,7 +318,17 @@ class MainWindow(QMainWindow):
         self.radio_capture_program = QRadioButton("Programkép")
         capture_layout.addWidget(self.radio_capture_screenshot)
         capture_layout.addWidget(self.radio_capture_program)
+        discord_row_widget = QWidget()
+        discord_row_layout = QHBoxLayout(discord_row_widget)
+        discord_row_layout.setContentsMargins(0, 0, 0, 0)
+        self.radio_capture_discord = QRadioButton("Discord mód")
+        self.btn_discord_settings = QPushButton("Beállítások")
+        discord_row_layout.addWidget(self.radio_capture_discord)
+        discord_row_layout.addWidget(self.btn_discord_settings)
+        discord_row_layout.addStretch()
+        capture_layout.addWidget(discord_row_widget)
         self.radio_capture_screenshot.setChecked(True)
+        self.btn_discord_settings.setEnabled(False)
         self.main_layout.addWidget(self.capture_group)
 
         self.size_widget = ScreenshotSizeWidget()
@@ -360,6 +377,8 @@ class MainWindow(QMainWindow):
         self.size_widget.select_area_requested.connect(self._start_area_selection)
         self.radio_capture_screenshot.toggled.connect(self._handle_capture_type_change)
         self.radio_capture_program.toggled.connect(self._handle_capture_type_change)
+        self.radio_capture_discord.toggled.connect(self._handle_capture_type_change)
+        self.btn_discord_settings.clicked.connect(self._open_discord_settings)
         if hasattr(self, 'window_selector'):
             self.window_selector.selection_changed.connect(lambda _: self._mark_dirty())
         self.timer_list.list_changed.connect(self._mark_dirty)
@@ -378,19 +397,33 @@ class MainWindow(QMainWindow):
     @Slot()
     def _handle_capture_type_change(self):
         prev_width = self._current_width
-        capture_type = "program" if self.radio_capture_program.isChecked() else "screenshot"
+        if self.radio_capture_discord.isChecked():
+            capture_type = "discord"
+        elif self.radio_capture_program.isChecked():
+            capture_type = "program"
+        else:
+            capture_type = "screenshot"
         size_enabled = capture_type == "screenshot"
         window_enabled = capture_type == "program"
         self.size_widget.setEnabled(size_enabled)
         self.window_selector.setEnabled(window_enabled)
         self.size_widget.setVisible(size_enabled)
         self.window_selector.setVisible(window_enabled)
+        self.btn_discord_settings.setEnabled(capture_type == "discord")
         color_inactive = "#555555"
         self.size_widget.setStyleSheet("" if size_enabled else f"background-color: {color_inactive};")
         self.window_selector.setStyleSheet("" if window_enabled else f"background-color: {color_inactive};")
         self.settings["capture_type"] = capture_type
         self._mark_dirty()
         self.resize(prev_width, self.height())
+
+    @Slot()
+    def _open_discord_settings(self):
+        dialog = DiscordSettingsDialog(self.discord_settings, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.discord_settings = dialog.get_settings()
+            self.settings["discord_settings"] = self.discord_settings
+            self._mark_dirty()
 
     def _update_ui_from_settings(self):
         logger.info("Metódus hívás: _update_ui_from_settings. Betöltött self.settings:")
@@ -399,9 +432,12 @@ class MainWindow(QMainWindow):
         capture_loaded = self.settings.get("capture_type", "screenshot")
         if capture_loaded == "program":
             self.radio_capture_program.setChecked(True)
+        elif capture_loaded == "discord":
+            self.radio_capture_discord.setChecked(True)
         else:
             self.radio_capture_screenshot.setChecked(True)
         self._handle_capture_type_change()
+        self.discord_settings = self.settings.get("discord_settings", self.discord_settings)
         try:
             mode_loaded = self.settings.get("screenshot_mode", "fullscreen")
             custom_area_loaded = self.settings.get("custom_area", {})
@@ -533,7 +569,9 @@ class MainWindow(QMainWindow):
 
         new_settings = {
             "save_path": save_path,
-            "capture_type": "program" if self.radio_capture_program.isChecked() else "screenshot",
+            "capture_type": "discord" if self.radio_capture_discord.isChecked() else (
+                "program" if self.radio_capture_program.isChecked() else "screenshot"
+            ),
             "screenshot_mode": mode,
             "custom_area": custom_area_dict_to_save,
             "target_window": self.window_selector.get_selected_title() if hasattr(self, 'window_selector') else "",
@@ -541,6 +579,7 @@ class MainWindow(QMainWindow):
             "autostart_preferred": self.settings.get("autostart_preferred", False),
             "include_timestamp": self.timestamp_checkbox.isChecked() if hasattr(self, "timestamp_checkbox") else True,
             "timestamp_position": self.timestamp_widget.get_settings()[1] if hasattr(self, "timestamp_widget") else "top-left",
+            "discord_settings": self.discord_settings,
         }
         logger.info(f"Teljes mentendő new_settings: {new_settings}")
         try:
