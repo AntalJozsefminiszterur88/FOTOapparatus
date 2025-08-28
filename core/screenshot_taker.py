@@ -173,15 +173,26 @@ def _press_ctrl_number(number: int) -> None:
         return
     number = max(0, min(9, int(number)))
     vk_code = ord(str(number))
-    # Tartsuk lenyomva a Ctrl billentyűt egy kicsit hosszabban, majd nyomjuk meg
-    # egyszer a megadott számot, végül engedjük fel mindkettőt.
-    win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
-    time.sleep(0.2)
-    win32api.keybd_event(vk_code, 0, 0, 0)
-    time.sleep(0.2)
-    win32api.keybd_event(vk_code, 0, win32con.KEYEVENTF_KEYUP, 0)
-    time.sleep(0.1)
-    win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
+
+    # A win32api.keybd_event függvény megbízható működéséhez a
+    # virtuális billentyűkód mellett a szkenkódot is meg kell adnunk.
+    # Ennek hiányában előfordulhat, hogy a Ctrl lenyomását nem
+    # érzékeli a rendszer, így csak a szám kerül beírásra.
+    ctrl_vk = win32con.VK_LCONTROL
+    ctrl_scan = win32api.MapVirtualKey(ctrl_vk, 0)
+    num_scan = win32api.MapVirtualKey(vk_code, 0)
+
+    # Tartsuk lenyomva a Ctrl billentyűt, majd küldjük a számot és végül
+    # engedjük fel mindkettőt.
+    win32api.keybd_event(ctrl_vk, ctrl_scan, 0, 0)
+    try:
+        time.sleep(0.05)
+        win32api.keybd_event(vk_code, num_scan, 0, 0)
+        time.sleep(0.05)
+        win32api.keybd_event(vk_code, num_scan, win32con.KEYEVENTF_KEYUP, 0)
+    finally:
+        time.sleep(0.05)
+        win32api.keybd_event(ctrl_vk, ctrl_scan, win32con.KEYEVENTF_KEYUP, 0)
 
 
 def _add_timestamp(img: Image.Image, position: str) -> None:
