@@ -113,13 +113,64 @@ class MainWindow(QMainWindow):
 
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
-        # Explicitly set background and text colors to ensure readability across
-        # different OS themes
-        # Set a dark background on the main window and ensure all child widgets
-        # inherit white text so the UI remains readable on dark OS themes
+        # Apply a Discord-like dark theme while keeping functionality intact
+        # Based on Discord's colour palette (https://discord.com/branding)
         self.setStyleSheet(
-            "QMainWindow { background-color: #1f1f1f; }"
-            " QWidget { color: white; }"
+            """
+            QMainWindow {
+                background-color: #36393F;
+            }
+            QWidget {
+                background-color: #2F3136;
+                color: #DCDDDE;
+            }
+            QLabel {
+                background-color: transparent;
+            }
+            QGroupBox {
+                border: 1px solid #202225;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 0 3px;
+                color: #DCDDDE;
+            }
+            QPushButton {
+                background-color: #5865F2;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 12px;
+            }
+            QPushButton:hover {
+                background-color: #4752C4;
+            }
+            QPushButton:disabled {
+                background-color: #2F3136;
+                color: #4F545C;
+            }
+            QCheckBox, QRadioButton {
+                background-color: transparent;
+            }
+            QTimeEdit {
+                background-color: #202225;
+                border: 1px solid #202225;
+                border-radius: 4px;
+                padding: 2px;
+                selection-background-color: #5865F2;
+            }
+            QMenu {
+                background-color: #2F3136;
+                color: #DCDDDE;
+            }
+            QMenu::item:selected {
+                background-color: #5865F2;
+                color: white;
+            }
+            """
         )
         self.main_layout = QVBoxLayout(central_widget)
         central_widget.setLayout(self.main_layout)
