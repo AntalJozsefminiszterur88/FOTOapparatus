@@ -1,4 +1,5 @@
 from PySide6.QtCore import Qt
+from PySide6.QtNetwork import QLocalServer
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -13,7 +14,29 @@ from PySide6.QtWidgets import (
 class MainWindow(QMainWindow):
     """Minimal főablak Discord stílusban."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        start_hidden: bool = False,
+        server_name: str | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        """Create the main window.
+
+        Parameters
+        ----------
+        start_hidden:
+            Whether the window should start hidden. The main module is
+            responsible for not calling :func:`show` when this flag is
+            ``True``; it is accepted here to keep the constructor signature in
+            sync with that expectation.
+        server_name:
+            Name of the :class:`QLocalServer` used for single instance
+            detection. When provided a server is created that listens for
+            ``show_yourself`` messages to restore the window.
+        parent:
+            Optional parent widget.
+        """
+
         super().__init__(parent)
         self.setWindowTitle("FOTO-Apparátus")
         self.resize(800, 600)
@@ -46,6 +69,16 @@ class MainWindow(QMainWindow):
 
         self._apply_style()
 
+        # Server for single-instance handling
+        self._server: QLocalServer | None = None
+        if server_name:
+            self._server = QLocalServer(self)
+            # In case a stale server exists from a crash, remove it first
+            if not self._server.listen(server_name):
+                QLocalServer.removeServer(server_name)
+                self._server.listen(server_name)
+            self._server.newConnection.connect(self._handle_connection)
+
     def _apply_style(self) -> None:
         self.setStyleSheet(
             """
@@ -61,6 +94,30 @@ class MainWindow(QMainWindow):
             QPushButton:hover { background-color: #40444b; }
             """
         )
+
+    def _handle_connection(self) -> None:
+        """Handle a message from a secondary instance.
+
+        When another process connects and sends ``show_yourself`` the main
+        window is shown and activated.
+        """
+
+        if not self._server:
+            return
+
+        socket = self._server.nextPendingConnection()
+        if not socket:
+            return
+
+        def read_and_show() -> None:
+            data = bytes(socket.readAll()).decode("utf-8").strip()
+            if data == "show_yourself":
+                self.show()
+                self.raise_()
+                self.activateWindow()
+            socket.disconnectFromServer()
+
+        socket.readyRead.connect(read_and_show)
 
 
 if __name__ == "__main__":
