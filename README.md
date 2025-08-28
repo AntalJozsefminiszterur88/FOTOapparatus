@@ -1,6 +1,6 @@
 # FOTOapparatus
 
-Ez a projekt egy egyszeru Python alkalmazas, amellyel kepernyokepeket vagy webkameras fenykepet keszithetsz. A grafikus feluletet a PySide6 biztosítja.
+Ez a projekt egy egyszeru Python alkalmazas, amellyel kepernyokepeket vagy webkameras fenykepet keszithetsz. A grafikus felületet a PySide6 biztosítja Discord stílusban.
 
 ## Fo funkciok
 
@@ -31,7 +31,7 @@ A `start.bat` egy egyszeru Windows parancsfajl a fejlesztoi inditashoz. A `build
 ## Mappak
 
 - `core/` – logika (kepernyokep keszites, utemezo, konfiguracio)
-- `gui/` – PySide6 felulet komponensek
+- `discord_gui/` – Discord stílusú PySide6 felület komponensek
 - `assets/` – ikonok es egyeb statikus allomanyok
 
 ## Konfiguracio
