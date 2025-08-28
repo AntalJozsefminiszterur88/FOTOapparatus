@@ -20,10 +20,18 @@ if platform.system() == "Windows":
 PW_RENDERFULLCONTENT = 0x00000002
 
 
-def _capture_window(title: str, *, restore_foreground: bool = True, pre_action: Optional[callable] = None) -> Optional[Image.Image]:
-    """
-    Captures a window by title. To bypass Windows' focus-stealing prevention,
-    it uses a robust method to force the window to the foreground.
+def _capture_window(
+    title: str,
+    *,
+    restore_foreground: bool = True,
+    pre_action: Optional[callable] = None,
+    executable: Optional[str] = None,
+) -> Optional[Image.Image]:
+    """Capture a window matching *title* and optionally *executable*.
+
+    Providing ``executable`` ensures that the window belongs to the given
+    process (e.g. ``discord.exe``), which helps avoid bringing the wrong
+    window to the foreground.
     """
     if platform.system() != "Windows":
         return None
@@ -32,11 +40,30 @@ def _capture_window(title: str, *, restore_foreground: bool = True, pre_action: 
 
     def _enum(hwnd_in, lparam):
         nonlocal hwnd
-        if win32gui.IsWindowVisible(hwnd_in):
-            if title.lower() in win32gui.GetWindowText(hwnd_in).lower():
-                hwnd = hwnd_in
-                return False
-        return True
+        if not win32gui.IsWindowVisible(hwnd_in):
+            return True
+
+        window_text = win32gui.GetWindowText(hwnd_in)
+        if title.lower() not in window_text.lower():
+            return True
+
+        if executable:
+            try:
+                _, pid = win32process.GetWindowThreadProcessId(hwnd_in)
+                proc_handle = win32api.OpenProcess(
+                    win32con.PROCESS_QUERY_INFORMATION | win32con.PROCESS_VM_READ,
+                    False,
+                    pid,
+                )
+                exe_path = win32process.GetModuleFileNameEx(proc_handle, 0)
+                win32api.CloseHandle(proc_handle)
+                if os.path.basename(exe_path).lower() != executable.lower():
+                    return True
+            except Exception:
+                return True
+
+        hwnd = hwnd_in
+        return False
 
     win32gui.EnumWindows(_enum, None)
     if not hwnd:
@@ -247,6 +274,7 @@ def take_discord_screenshot(
         window_title or "Discord",
         restore_foreground=not stay_foreground,
         pre_action=pre_action,
+        executable="discord.exe",
     )
     if img is None:
         return None
