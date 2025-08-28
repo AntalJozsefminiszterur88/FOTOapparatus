@@ -233,6 +233,7 @@ def take_discord_screenshot(
     stay_foreground: bool = False,
     use_hotkey: bool = False,
     hotkey_number: int = 1,
+    window_title: str = "Discord",
 ) -> Optional[Image.Image]:
     def pre_action():
         if use_hotkey:
@@ -240,7 +241,7 @@ def take_discord_screenshot(
             time.sleep(0.1)
 
     img = _capture_window(
-        "Discord",
+        window_title or "Discord",
         restore_foreground=not stay_foreground,
         pre_action=pre_action,
     )

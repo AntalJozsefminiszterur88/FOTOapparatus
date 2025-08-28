@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (
     QPushButton
 )
 
+from .window_selector_widget import WindowSelectorWidget
+
 
 class DiscordSettingsDialog(QDialog):
     """Egyszerű beállító ablak a Discord módhoz."""
@@ -20,6 +22,10 @@ class DiscordSettingsDialog(QDialog):
         settings = settings or {}
 
         layout = QVBoxLayout(self)
+
+        self.window_selector = WindowSelectorWidget()
+        layout.addWidget(self.window_selector)
+        self.window_selector.set_selected_title(settings.get("window_title", ""))
 
         self.stay_foreground_cb = QCheckBox("Discord maradjon az előtérben")
         self.stay_foreground_cb.setChecked(settings.get("stay_foreground", False))
@@ -40,17 +46,24 @@ class DiscordSettingsDialog(QDialog):
 
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-        ok_button = QPushButton("OK")
+        self.ok_button = QPushButton("OK")
         cancel_button = QPushButton("Mégse")
-        ok_button.clicked.connect(self.accept)
+        self.ok_button.clicked.connect(self.accept)
         cancel_button.clicked.connect(self.reject)
-        button_layout.addWidget(ok_button)
+        button_layout.addWidget(self.ok_button)
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)
+
+        self.ok_button.setEnabled(bool(self.window_selector.get_selected_title().strip()))
+        self.window_selector.selection_changed.connect(self._update_ok)
+
+    def _update_ok(self, text: str):
+        self.ok_button.setEnabled(bool(text.strip()))
 
     def get_settings(self) -> dict:
         return {
             "stay_foreground": self.stay_foreground_cb.isChecked(),
             "use_hotkey": self.use_hotkey_cb.isChecked(),
             "hotkey_number": self.hotkey_spin.value(),
+            "window_title": self.window_selector.get_selected_title(),
         }

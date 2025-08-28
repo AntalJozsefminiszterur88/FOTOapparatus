@@ -62,6 +62,7 @@ class ConfigManager:
                 "stay_foreground": False,
                 "use_hotkey": False,
                 "hotkey_number": 1,
+                "window_title": "",
             },
         }
 
