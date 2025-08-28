@@ -15,11 +15,12 @@ if platform.system() == "Windows":
     import win32gui
     import win32ui
     import win32process
+    import win32api
 
 PW_RENDERFULLCONTENT = 0x00000002
 
 
-def _capture_window(title: str) -> Optional[Image.Image]:
+def _capture_window(title: str, *, restore_foreground: bool = True, pre_action: Optional[callable] = None) -> Optional[Image.Image]:
     """
     Captures a window by title. To bypass Windows' focus-stealing prevention,
     it uses a robust method to force the window to the foreground.
@@ -53,7 +54,10 @@ def _capture_window(title: str) -> Optional[Image.Image]:
     try:
         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
         win32gui.SetForegroundWindow(hwnd)
-        
+
+        if pre_action:
+            pre_action()
+
         time.sleep(0.2)
 
         window_rect = win32gui.GetWindowRect(hwnd)
@@ -105,18 +109,28 @@ def _capture_window(title: str) -> Optional[Image.Image]:
     finally:
         # --- A VÉGSŐ JAVÍTÁS ---
         # Mielőtt visszaállítjuk az eredeti ablakot, ellenőrizzük, hogy még létezik-e!
-        if original_foreground_hwnd and win32gui.IsWindow(original_foreground_hwnd):
+        if restore_foreground and original_foreground_hwnd and win32gui.IsWindow(original_foreground_hwnd):
             try:
                 win32gui.SetForegroundWindow(original_foreground_hwnd)
             except Exception:
-                # Ha mégsem sikerül, nem állítjuk le a programot, csak jelezzük a logban.
                 print("Figyelmeztetés: Az eredeti ablakot nem sikerült visszaállítani az előtérbe.")
-        
+
         user32.AttachThreadInput(current_thread_id, target_thread_id, False)
 
 
 def _capture_screen(region: Optional[tuple[int, int, int, int]] = None) -> Image.Image:
     return ImageGrab.grab(bbox=region)
+
+
+def _press_ctrl_number(number: int) -> None:
+    if platform.system() != "Windows":
+        return
+    number = max(0, min(9, int(number)))
+    vk_code = ord(str(number))
+    win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
+    win32api.keybd_event(vk_code, 0, 0, 0)
+    win32api.keybd_event(vk_code, 0, win32con.KEYEVENTF_KEYUP, 0)
+    win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
 
 
 def _add_timestamp(img: Image.Image, position: str) -> None:
@@ -193,6 +207,43 @@ def take_screenshot(
         print(f"HIBA: Nem sikerült elmenteni a képernyőképet ide: {save_path} - {exc}")
         return None
 
+    return img
+
+
+def take_discord_screenshot(
+    save_directory: str,
+    filename_prefix: str = "Kép",
+    add_timestamp: bool = False,
+    timestamp_position: str = "top-left",
+    stay_foreground: bool = False,
+    use_hotkey: bool = False,
+    hotkey_number: int = 1,
+) -> Optional[Image.Image]:
+    def pre_action():
+        if use_hotkey:
+            _press_ctrl_number(hotkey_number)
+            time.sleep(0.1)
+
+    img = _capture_window(
+        "Discord",
+        restore_foreground=not stay_foreground,
+        pre_action=pre_action,
+    )
+    if img is None:
+        return None
+    if add_timestamp:
+        _add_timestamp(img, timestamp_position)
+
+    os.makedirs(save_directory, exist_ok=True)
+    timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
+    filename = f"{filename_prefix}_{timestamp_for_filename}.png"
+    save_path = os.path.join(save_directory, filename)
+    try:
+        img.save(save_path)
+        print(f"Képernyőkép sikeresen elmentve: {save_path}")
+    except Exception as exc:
+        print(f"HIBA: Nem sikerült elmenteni a képernyőképet ide: {save_path} - {exc}")
+        return None
     return img
 
 

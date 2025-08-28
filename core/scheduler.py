@@ -11,7 +11,7 @@ from apscheduler.jobstores.base import JobLookupError
 # Saját modulok importálása
 # Figyelem a relatív importra, ha csomagként használjuk
 try:
-    from .screenshot_taker import take_screenshot
+    from .screenshot_taker import take_screenshot, take_discord_screenshot
     # ConfigManager itt technikailag nem kell, azt a MainWindow példányosítja
     # és a beállításokat átadja a schedulernek, vagy a scheduler kap egy referenciát rá.
     # Egyszerűbb, ha a MainWindow tölti be a configot és adja át az adatokat.
@@ -69,6 +69,7 @@ class Scheduler:
         target_window = self.current_settings.get("target_window", "")
         include_timestamp = self.current_settings.get("include_timestamp", True)
         timestamp_position = self.current_settings.get("timestamp_position", "top-left")
+        discord_settings = self.current_settings.get("discord_settings", {})
 
         logger.info(
             f"Feladatok ütemezése {len(schedules)} szabály alapján. Mentési hely: {save_path}, Típus: {capture_type}, Mód: {mode}"
@@ -110,10 +111,25 @@ class Scheduler:
 
                 # Feladat hozzáadása az ütemezőhöz
                 job_id = f"capture_job_{i}"
+                if capture_type == "discord":
+                    job_func = take_discord_screenshot
+                    job_args = [
+                        save_path,
+                        "Kép",
+                        include_timestamp,
+                        timestamp_position,
+                        discord_settings.get("stay_foreground", False),
+                        discord_settings.get("use_hotkey", False),
+                        discord_settings.get("hotkey_number", 1),
+                    ]
+                else:
+                    job_func = take_screenshot
+                    job_args = [save_path, "Kép", area_arg, include_timestamp, timestamp_position, target_window]
+
                 self.scheduler.add_job(
-                    take_screenshot,
+                    job_func,
                     trigger=trigger,
-                    args=[save_path, "Kép", area_arg, include_timestamp, timestamp_position, target_window],
+                    args=job_args,
                     id=job_id,
                     name=f"Kép at {time_str} on {days_str}",
                     replace_existing=True,
