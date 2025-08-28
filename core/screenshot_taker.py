@@ -79,7 +79,11 @@ def _capture_window(
 
     img = None
     try:
-        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        # Only restore the window if it is minimized. Calling SW_RESTORE on a
+        # fullscreen/ maximized window would shrink it to windowed mode, which
+        # is undesirable when capturing programs like Discord.
+        if win32gui.IsIconic(hwnd):
+            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
         win32gui.SetForegroundWindow(hwnd)
 
         # Ensure the window really moves to the foreground before capturing
