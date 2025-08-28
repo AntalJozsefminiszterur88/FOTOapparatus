@@ -1,4 +1,6 @@
-from PySide6.QtCore import Qt
+import os
+
+from PySide6.QtCore import Qt, QStandardPaths
 from PySide6.QtNetwork import QLocalServer
 from PySide6.QtWidgets import (
     QApplication,
@@ -9,6 +11,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from core import photo_taker
 
 
 class MainWindow(QMainWindow):
@@ -56,8 +60,10 @@ class MainWindow(QMainWindow):
 
         btn_home = QPushButton("Kezdőlap")
         btn_settings = QPushButton("Beállítások")
+        btn_photo = QPushButton("Fotó készítése")
         sidebar_layout.addWidget(btn_home)
         sidebar_layout.addWidget(btn_settings)
+        sidebar_layout.addWidget(btn_photo)
         sidebar_layout.addStretch()
 
         # Tartalom terület
@@ -68,6 +74,8 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.content, 1)
 
         self._apply_style()
+
+        btn_photo.clicked.connect(self._take_photo)
 
         # Server for single-instance handling
         self._server: QLocalServer | None = None
@@ -94,6 +102,18 @@ class MainWindow(QMainWindow):
             QPushButton:hover { background-color: #40444b; }
             """
         )
+
+    def _take_photo(self) -> None:
+        save_dir = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.PicturesLocation
+        )
+        if not save_dir:
+            save_dir = os.path.expanduser("~")
+        path = photo_taker.take_photo(save_dir)
+        if path:
+            self.content.setText(f"Fotó elmentve:\n{path}")
+        else:
+            self.content.setText("Hiba történt a fotó készítése közben.")
 
     def _handle_connection(self) -> None:
         """Handle a message from a secondary instance.
