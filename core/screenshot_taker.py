@@ -268,13 +268,18 @@ def take_discord_screenshot(
     hotkey_number: int = 1,
     window_title: str = "Discord",
 ) -> Optional[Image.Image]:
+    pre_action = None
     if use_hotkey:
-        _press_ctrl_number(hotkey_number)
-        # biztosítsunk elegendő időt a váltásra
-        time.sleep(0.5)
+        def pre_action():
+            # Bring Discord to the foreground (handled by _capture_window),
+            # wait a bit, press the hotkey and wait again before capturing
+            time.sleep(2)
+            _press_ctrl_number(hotkey_number)
+            time.sleep(2)
 
     img = _capture_window(
         window_title or "Discord",
+        pre_action=pre_action,
         restore_foreground=not stay_foreground,
         executable="discord.exe",
     )
