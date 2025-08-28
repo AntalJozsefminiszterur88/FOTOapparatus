@@ -45,6 +45,7 @@ try:
     from core.config_manager import ConfigManager
     from core.scheduler import Scheduler
     from core import autostart_manager
+    from core.screenshot_taker import take_screenshot, take_discord_screenshot
     # from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QScreen, QPainterPath, QFont # Már importálva
 
 except ImportError as e:
@@ -312,6 +313,14 @@ class MainWindow(QMainWindow):
         
     def _setup_ui(self):
         logger.debug("UI elemek beállítása...")
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.addStretch()
+        self.test_button = QPushButton("Teszt")
+        self.test_button.setFixedWidth(60)
+        top_layout.addWidget(self.test_button)
+        self.main_layout.addLayout(top_layout)
+
         self.capture_group = QGroupBox("Felvétel mód")
         capture_layout = QVBoxLayout(self.capture_group)
         self.radio_capture_screenshot = QRadioButton("Képernyőkép")
@@ -379,6 +388,7 @@ class MainWindow(QMainWindow):
         self.radio_capture_program.toggled.connect(self._handle_capture_type_change)
         self.radio_capture_discord.toggled.connect(self._handle_capture_type_change)
         self.btn_discord_settings.clicked.connect(self._open_discord_settings)
+        self.test_button.clicked.connect(self._take_test_picture)
         if hasattr(self, 'window_selector'):
             self.window_selector.selection_changed.connect(lambda _: self._mark_dirty())
         self.timer_list.list_changed.connect(self._mark_dirty)
@@ -424,6 +434,58 @@ class MainWindow(QMainWindow):
             self.discord_settings = dialog.get_settings()
             self.settings["discord_settings"] = self.discord_settings
             self._mark_dirty()
+
+    @Slot()
+    def _take_test_picture(self):
+        logger.info("Teszt gomb megnyomva, azonnali képkészítés indítása.")
+        save_path = self.settings.get("save_path", "")
+        if not save_path:
+            QMessageBox.warning(self, "Hiányzó adat", "Nincs mentési mappa!")
+            return
+
+        capture_type = (
+            "discord" if self.radio_capture_discord.isChecked() else (
+                "program" if self.radio_capture_program.isChecked() else "screenshot"
+            )
+        )
+        include_timestamp = self.timestamp_checkbox.isChecked() if hasattr(self, "timestamp_checkbox") else True
+        timestamp_position = self.timestamp_widget.get_settings()[1] if hasattr(self, "timestamp_widget") else "top-left"
+
+        img = None
+        if capture_type == "discord":
+            ds = self.discord_settings or {}
+            img = take_discord_screenshot(
+                save_path,
+                "Teszt",
+                include_timestamp,
+                timestamp_position,
+                ds.get("stay_foreground", False),
+                ds.get("use_hotkey", False),
+                ds.get("hotkey_number", 1),
+            )
+        else:
+            area = None
+            if capture_type == "screenshot":
+                mode = self.size_widget.get_mode()
+                if mode == "custom":
+                    rect = self.size_widget.get_custom_rect()
+                    if rect.isValid():
+                        area = rect
+            window_title = self.window_selector.get_selected_title() if capture_type == "program" else ""
+            img = take_screenshot(
+                save_path,
+                "Teszt",
+                area,
+                include_timestamp,
+                timestamp_position,
+                window_title,
+                capture_type,
+            )
+
+        if img is None:
+            QMessageBox.warning(self, "Hiba", "Nem sikerült képet készíteni.")
+        else:
+            self.statusBar().showMessage("Tesztkép elkészült.", 3000)
 
     def _update_ui_from_settings(self):
         logger.info("Metódus hívás: _update_ui_from_settings. Betöltött self.settings:")
