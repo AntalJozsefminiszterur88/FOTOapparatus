@@ -173,13 +173,14 @@ def _press_ctrl_number(number: int) -> None:
         return
     number = max(0, min(9, int(number)))
     vk_code = ord(str(number))
+    # Tartsuk lenyomva a Ctrl billentyűt egy kicsit hosszabban, majd nyomjuk meg
+    # egyszer a megadott számot, végül engedjük fel mindkettőt.
     win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
-    time.sleep(0.05)
+    time.sleep(0.2)
     win32api.keybd_event(vk_code, 0, 0, 0)
-    # hagyjunk egy kis időt, hogy a rendszer érzékelje a kombinációt
-    time.sleep(0.1)
+    time.sleep(0.2)
     win32api.keybd_event(vk_code, 0, win32con.KEYEVENTF_KEYUP, 0)
-    time.sleep(0.05)
+    time.sleep(0.1)
     win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
 
 
@@ -274,9 +275,9 @@ def take_discord_screenshot(
     if use_hotkey:
         def pre_action():
             # Bring Discord to the foreground (handled by _capture_window),
-            # press the hotkey first, then give Discord a moment to update
+            # press the hotkey first, then give Discord time to update
             _press_ctrl_number(hotkey_number)
-            time.sleep(0.5)
+            time.sleep(2)
 
     img = _capture_window(
         window_title or "Discord",
