@@ -18,7 +18,7 @@ except Exception:
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QApplication
 from PySide6.QtNetwork import QLocalSocket, QLocalServer
-from gui.main_window import MainWindow
+from discord_gui.main_window import MainWindow
 
 ORG_NAME = "UMKGL Solutions"
 APP_NAME = "FOTOapp"
