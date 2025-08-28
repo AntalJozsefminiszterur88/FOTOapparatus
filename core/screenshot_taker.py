@@ -274,10 +274,9 @@ def take_discord_screenshot(
     if use_hotkey:
         def pre_action():
             # Bring Discord to the foreground (handled by _capture_window),
-            # wait a bit, press the hotkey and wait again before capturing
-            time.sleep(2)
+            # press the hotkey first, then give Discord a moment to update
             _press_ctrl_number(hotkey_number)
-            time.sleep(2)
+            time.sleep(0.5)
 
     img = _capture_window(
         window_title or "Discord",
