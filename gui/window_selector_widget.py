@@ -13,13 +13,15 @@ from PySide6.QtCore import Signal
 
 import platform
 
-try:
-    if platform.system() == "Windows":
-        import pygetwindow as gw
-    else:
-        gw = None
-except Exception:
-    gw = None
+_import_error = False
+gw = None
+
+if platform.system() == "Windows":
+    try:
+        import pygetwindow as gw  # type: ignore
+    except Exception:
+        _import_error = True
+
 
 class WindowSelectorWidget(QWidget):
     """Widget a futó alkalmazások ablakainak kiválasztásához."""
@@ -38,7 +40,11 @@ class WindowSelectorWidget(QWidget):
         group_layout = QVBoxLayout(group_box)
 
         if gw is None:
-            self.info_label = QLabel("Nem támogatott rendszer")
+            if _import_error:
+                message = "Hiányzik a pygetwindow modul"
+            else:
+                message = "Nem támogatott rendszer"
+            self.info_label = QLabel(message)
             group_layout.addWidget(self.info_label)
             self.combo = None
             return
