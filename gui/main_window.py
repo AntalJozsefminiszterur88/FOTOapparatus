@@ -461,6 +461,9 @@ class MainWindow(QMainWindow):
         img = None
         if capture_type == "discord":
             ds = self.discord_settings or {}
+            if not ds.get("window_title"):
+                QMessageBox.warning(self, "Hiányzó adat", "Válaszd ki a Discord ablakot a beállításokban.")
+                return
             img = take_discord_screenshot(
                 save_path,
                 "Teszt",
@@ -469,6 +472,7 @@ class MainWindow(QMainWindow):
                 ds.get("stay_foreground", False),
                 ds.get("use_hotkey", False),
                 ds.get("hotkey_number", 1),
+                ds.get("window_title", "Discord"),
             )
         else:
             area = None

@@ -112,6 +112,9 @@ class Scheduler:
                 # Feladat hozzáadása az ütemezőhöz
                 job_id = f"capture_job_{i}"
                 if capture_type == "discord":
+                    if not discord_settings.get("window_title"):
+                        logger.warning("Discord ablak nincs kiválasztva, a feladat kihagyva.")
+                        continue
                     job_func = take_discord_screenshot
                     job_args = [
                         save_path,
@@ -121,6 +124,7 @@ class Scheduler:
                         discord_settings.get("stay_foreground", False),
                         discord_settings.get("use_hotkey", False),
                         discord_settings.get("hotkey_number", 1),
+                        discord_settings.get("window_title", "Discord"),
                     ]
                 else:
                     job_func = take_screenshot
