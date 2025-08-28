@@ -174,10 +174,12 @@ def _press_ctrl_number(number: int) -> None:
     number = max(0, min(9, int(number)))
     vk_code = ord(str(number))
     win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
+    time.sleep(0.05)
     win32api.keybd_event(vk_code, 0, 0, 0)
     # hagyjunk egy kis időt, hogy a rendszer érzékelje a kombinációt
-    time.sleep(0.05)
+    time.sleep(0.1)
     win32api.keybd_event(vk_code, 0, win32con.KEYEVENTF_KEYUP, 0)
+    time.sleep(0.05)
     win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
 
 
