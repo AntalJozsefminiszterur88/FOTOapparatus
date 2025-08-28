@@ -49,16 +49,31 @@ def _capture_window(title: str, *, restore_foreground: bool = True, pre_action: 
     
     user32 = ctypes.windll.user32
     user32.AttachThreadInput(current_thread_id, target_thread_id, True)
-    
+
     img = None
     try:
         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
         win32gui.SetForegroundWindow(hwnd)
 
+        # Ensure the window really moves to the foreground before capturing
+        for _ in range(20):
+            if win32gui.GetForegroundWindow() == hwnd:
+                break
+            time.sleep(0.05)
+            win32gui.SetForegroundWindow(hwnd)
+        else:
+            print(f"HIBA: A '{title}' ablak nem került az előtérbe.")
+            return None
+
         if pre_action:
             pre_action()
 
         time.sleep(0.2)
+
+        # Double-check foreground after pre_action
+        if win32gui.GetForegroundWindow() != hwnd:
+            print(f"HIBA: A '{title}' ablak időközben elvesztette az előtér státuszát.")
+            return None
 
         window_rect = win32gui.GetWindowRect(hwnd)
         width = window_rect[2] - window_rect[0]
