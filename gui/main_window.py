@@ -433,7 +433,14 @@ class MainWindow(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.discord_settings = dialog.get_settings()
             self.settings["discord_settings"] = self.discord_settings
-            self._mark_dirty()
+            if not self.config_manager.save_settings(self.settings):
+                QMessageBox.critical(self, "Mentési Hiba", "Nem sikerült menteni a Discord beállításokat.")
+            else:
+                self.statusBar().showMessage("Discord beállítások elmentve.", 3000)
+                try:
+                    self.scheduler.reload_jobs(self.settings)
+                except Exception as e:
+                    logger.exception("Hiba scheduler újratöltésekor:")
 
     @Slot()
     def _take_test_picture(self):
