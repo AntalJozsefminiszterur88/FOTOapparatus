@@ -169,8 +169,23 @@ def _capture_screen(region: Optional[tuple[int, int, int, int]] = None) -> Image
 
 
 def _press_ctrl_number(number: int) -> None:
+    """Press and hold Ctrl, press the given number key, then release.
+
+    The Ctrl key is held for three seconds. After one second the specified
+    number key is pressed (and immediately released) while Ctrl remains
+    pressed. After pressing the number key the function waits the remaining
+    two seconds before releasing Ctrl. This sequence matches Discord's hotkey
+    timing requirements.
+
+    Parameters
+    ----------
+    number: int
+        The digit (0-9) to send while Ctrl is held.
+    """
+
     if platform.system() != "Windows":
         return
+
     number = max(0, min(9, int(number)))
     vk_code = ord(str(number))
 
@@ -182,16 +197,17 @@ def _press_ctrl_number(number: int) -> None:
     ctrl_scan = win32api.MapVirtualKey(ctrl_vk, 0)
     num_scan = win32api.MapVirtualKey(vk_code, 0)
 
-    # Tartsuk lenyomva a Ctrl billentyűt, majd küldjük a számot és végül
-    # engedjük fel mindkettőt.
+    # Tartsuk lenyomva a Ctrl billentyűt.
     win32api.keybd_event(ctrl_vk, ctrl_scan, 0, 0)
     try:
-        time.sleep(0.05)
+        # A szám gomb lenyomása a Ctrl lenyomását követő 1. másodpercben.
+        time.sleep(1)
         win32api.keybd_event(vk_code, num_scan, 0, 0)
         time.sleep(0.05)
         win32api.keybd_event(vk_code, num_scan, win32con.KEYEVENTF_KEYUP, 0)
+        # Várjunk még két másodpercet, miközben a Ctrl lenyomva marad.
+        time.sleep(2)
     finally:
-        time.sleep(0.05)
         win32api.keybd_event(ctrl_vk, ctrl_scan, win32con.KEYEVENTF_KEYUP, 0)
 
 
@@ -282,13 +298,24 @@ def take_discord_screenshot(
     hotkey_number: int = 1,
     window_title: str = "Discord",
 ) -> Optional[Image.Image]:
+    """Capture a screenshot of the Discord window.
+
+    When ``use_hotkey`` is ``True`` the function brings Discord to the
+    foreground, performs a timed ``Ctrl`` + number key sequence and waits for
+    Discord to update before capturing the image. The ``Ctrl`` key is held for
+    three seconds, the chosen number key is pressed after one second, and the
+    screenshot is captured two seconds after the key press.
+
+    Parameters are identical to :func:`take_screenshot` with a few Discord
+    specific options.
+    """
+
     pre_action = None
     if use_hotkey:
         def pre_action():
-            # Bring Discord to the foreground (handled by _capture_window),
-            # press the hotkey first, then give Discord time to update
+            # Bring Discord to the foreground (handled by _capture_window)
+            # and execute the hotkey sequence before capturing.
             _press_ctrl_number(hotkey_number)
-            time.sleep(2)
 
     img = _capture_window(
         window_title or "Discord",
