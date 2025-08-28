@@ -31,6 +31,7 @@ try:
         QStyle,
         QGroupBox,
         QRadioButton,
+        QButtonGroup,
         QDialog,
     )
     from PySide6.QtGui import QIcon, QAction
@@ -336,6 +337,11 @@ class MainWindow(QMainWindow):
         discord_row_layout.addWidget(self.btn_discord_settings)
         discord_row_layout.addStretch()
         capture_layout.addWidget(discord_row_widget)
+        self.capture_mode_group = QButtonGroup(self.capture_group)
+        self.capture_mode_group.setExclusive(True)
+        self.capture_mode_group.addButton(self.radio_capture_screenshot)
+        self.capture_mode_group.addButton(self.radio_capture_program)
+        self.capture_mode_group.addButton(self.radio_capture_discord)
         self.radio_capture_screenshot.setChecked(True)
         self.btn_discord_settings.setEnabled(False)
         self.main_layout.addWidget(self.capture_group)
