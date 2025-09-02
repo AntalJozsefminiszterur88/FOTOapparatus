@@ -169,13 +169,12 @@ def _capture_screen(region: Optional[tuple[int, int, int, int]] = None) -> Image
 
 
 def _press_ctrl_number(number: int) -> None:
-    """Press and hold Ctrl, press the given number key, then release.
+    """Send a ``Ctrl`` + ``number`` key sequence using ``SendInput``.
 
-    The Ctrl key is held for three seconds. After one second the specified
-    number key is pressed (and immediately released) while Ctrl remains
-    pressed. After pressing the number key the function waits the remaining
-    two seconds before releasing Ctrl. This sequence matches Discord's hotkey
-    timing requirements.
+    The function presses ``VK_LCONTROL`` and the virtual key code for the
+    given digit in sequence, then releases them in reverse order. ``SendInput``
+    is used instead of ``keybd_event`` to ensure the combination is registered
+    by modern applications like Discord.
 
     Parameters
     ----------
@@ -189,26 +188,39 @@ def _press_ctrl_number(number: int) -> None:
     number = max(0, min(9, int(number)))
     vk_code = ord(str(number))
 
-    # A win32api.keybd_event függvény megbízható működéséhez a
-    # virtuális billentyűkód mellett a szkenkódot is meg kell adnunk.
-    # Ennek hiányában előfordulhat, hogy a Ctrl lenyomását nem
-    # érzékeli a rendszer, így csak a szám kerül beírásra.
-    ctrl_vk = win32con.VK_LCONTROL
-    ctrl_scan = win32api.MapVirtualKey(ctrl_vk, 0)
-    num_scan = win32api.MapVirtualKey(vk_code, 0)
+    user32 = ctypes.windll.user32
 
-    # Tartsuk lenyomva a Ctrl billentyűt.
-    win32api.keybd_event(ctrl_vk, ctrl_scan, 0, 0)
-    try:
-        # A szám gomb lenyomása a Ctrl lenyomását követő 1. másodpercben.
-        time.sleep(1)
-        win32api.keybd_event(vk_code, num_scan, 0, 0)
-        time.sleep(0.05)
-        win32api.keybd_event(vk_code, num_scan, win32con.KEYEVENTF_KEYUP, 0)
-        # Várjunk még két másodpercet, miközben a Ctrl lenyomva marad.
-        time.sleep(2)
-    finally:
-        win32api.keybd_event(ctrl_vk, ctrl_scan, win32con.KEYEVENTF_KEYUP, 0)
+    INPUT_KEYBOARD = 1
+    KEYEVENTF_KEYUP = 0x0002
+
+    class KEYBDINPUT(ctypes.Structure):
+        _fields_ = [
+            ("wVk", ctypes.c_ushort),
+            ("wScan", ctypes.c_ushort),
+            ("dwFlags", ctypes.c_uint),
+            ("time", ctypes.c_uint),
+            ("dwExtraInfo", ctypes.c_size_t),
+        ]
+
+    class INPUT(ctypes.Structure):
+        class _U(ctypes.Union):
+            _fields_ = [("ki", KEYBDINPUT)]
+
+        _anonymous_ = ("u",)
+        _fields_ = [("type", ctypes.c_uint), ("u", _U)]
+
+    def _send(vk: int, flags: int = 0) -> None:
+        ki = KEYBDINPUT(wVk=vk, wScan=0, dwFlags=flags, time=0, dwExtraInfo=0)
+        inp = INPUT(type=INPUT_KEYBOARD, ki=ki)
+        user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp))
+
+    # Press and release the keys with brief pauses to mimic real input.
+    _send(win32con.VK_LCONTROL)
+    time.sleep(0.05)
+    _send(vk_code)
+    _send(vk_code, KEYEVENTF_KEYUP)
+    time.sleep(0.05)
+    _send(win32con.VK_LCONTROL, KEYEVENTF_KEYUP)
 
 
 def _add_timestamp(img: Image.Image, position: str) -> None:
@@ -297,15 +309,14 @@ def take_discord_screenshot(
     use_hotkey: bool = False,
     hotkey_number: int = 1,
     window_title: str = "Discord",
-    delay_after_hotkey: float = 5.0,
+    delay_after_hotkey: float = 2.0,
 ) -> Optional[Image.Image]:
     """Capture a screenshot of the Discord window.
 
     When ``use_hotkey`` is ``True`` the function brings Discord to the
-    foreground, performs a timed ``Ctrl`` + number key sequence and waits for
-    Discord to update before capturing the image. The ``Ctrl`` key is held for
-    three seconds, the chosen number key is pressed after one second, and the
-    screenshot is captured two seconds after the key press.
+    foreground, sends a ``Ctrl`` + number key sequence using ``SendInput`` and
+    waits for ``delay_after_hotkey`` seconds to allow the Discord interface to
+    update before capturing the image.
 
     Parameters are identical to :func:`take_screenshot` with a few Discord
     specific options.
