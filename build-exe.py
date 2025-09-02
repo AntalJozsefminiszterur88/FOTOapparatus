@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+import argparse
 import PySide6
 
 # --- Konfiguráció ---
@@ -14,6 +15,16 @@ ASSETS_PATH = "assets"
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 def main():
+    parser = argparse.ArgumentParser(description="FOTOapp build script")
+    parser.add_argument(
+        "--onefile",
+        action="store_true",
+        help="Egyetlen .exe fájlba csomagolás (alapértelmezett: mappa)",
+    )
+    args = parser.parse_args()
+
+    mode_flag = "--onefile" if args.onefile else "--onedir"
+
     print(">>> Build folyamat elindítva...")
 
     # Stílusok és a qt.conf útvonalának megkeresése
@@ -38,12 +49,12 @@ def main():
         if os.path.exists(folder): shutil.rmtree(folder)
     if os.path.exists(f"{APP_NAME}.spec"): os.remove(f"{APP_NAME}.spec")
 
-    # --- A VÉGSŐ MEGOLDÁS: Nem egy fájlba, hanem egy mappába csomagolunk! ---
-    # Ez a legstabilabb módja a komplex alkalmazások terjesztésének.
+    # --- PyInstaller konfiguráció ---
     pyinstaller_command = [
-        "pyinstaller",
-        # --onefile HELYETT a --onedir-t használjuk
-        "--noconfirm", # Ne kérdezzen rá a törlésre
+        sys.executable, "-m", "PyInstaller",
+        "--noconfirm",  # Ne kérdezzen rá a törlésre
+        "--clean",
+        mode_flag,
         "--name", APP_NAME,
         "--windowed",
         f"--icon={ICON_PATH}",
@@ -68,16 +79,19 @@ def main():
         ENTRY_POINT
     ]
 
-    print("\n>>> PyInstaller parancs futtatása (mappa mód)...")
+    print("\n>>> PyInstaller parancs futtatása...")
     print(" ".join(pyinstaller_command))
 
     try:
         subprocess.run(pyinstaller_command, check=True)
         print("\n---------------------------\n")
-        print(f"✓ SIKER! Az elkészült program a 'dist\\{APP_NAME}' mappában található.")
-        print(f"Az indítófájl: 'dist\\{APP_NAME}\\{APP_NAME}.exe'")
-        
-    except subprocess.CalledProcessError:
+        if args.onefile:
+            print(f"✓ SIKER! Az elkészült futtatható a 'dist\\{APP_NAME}.exe' fájl.")
+        else:
+            print(f"✓ SIKER! Az elkészült program a 'dist\\{APP_NAME}' mappában található.")
+            print(f"Az indítófájl: 'dist\\{APP_NAME}\\{APP_NAME}.exe'")
+
+    except (subprocess.CalledProcessError, FileNotFoundError):
         print("\n--- HIBA A BUILD SORÁN ---")
         sys.exit(1)
 
