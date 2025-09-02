@@ -226,6 +226,7 @@ def _press_ctrl_number(number: int) -> None:
     INPUT_KEYBOARD = 1
     KEYEVENTF_KEYUP = 0x0002
     KEYEVENTF_SCANCODE = 0x0008
+    KEYEVENTF_EXTENDEDKEY = 0x0001
 
     # Map virtual keys to hardware scan codes
     ctrl_scan = win32api.MapVirtualKey(win32con.VK_LCONTROL, 0)
@@ -238,7 +239,7 @@ def _press_ctrl_number(number: int) -> None:
     inputs[0].ki = KEYBDINPUT(
         wVk=0,
         wScan=ctrl_scan,
-        dwFlags=KEYEVENTF_SCANCODE,
+        dwFlags=KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY,
         time=0,
         dwExtraInfo=0,
     )
@@ -268,7 +269,7 @@ def _press_ctrl_number(number: int) -> None:
     inputs[3].ki = KEYBDINPUT(
         wVk=0,
         wScan=ctrl_scan,
-        dwFlags=KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
+        dwFlags=KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,
         time=0,
         dwExtraInfo=0,
     )
