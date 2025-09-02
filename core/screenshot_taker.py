@@ -225,16 +225,53 @@ def _press_ctrl_number(number: int) -> None:
 
     INPUT_KEYBOARD = 1
     KEYEVENTF_KEYUP = 0x0002
+    KEYEVENTF_SCANCODE = 0x0008
+
+    # Map virtual keys to hardware scan codes
+    ctrl_scan = win32api.MapVirtualKey(win32con.VK_LCONTROL, 0)
+    num_scan = win32api.MapVirtualKey(vk_code, 0)
 
     inputs = (INPUT * 4)()
+
+    # CTRL down
     inputs[0].type = INPUT_KEYBOARD
-    inputs[0].ki = KEYBDINPUT(wVk=win32con.VK_LCONTROL, wScan=0, dwFlags=0, time=0, dwExtraInfo=0)
+    inputs[0].ki = KEYBDINPUT(
+        wVk=0,
+        wScan=ctrl_scan,
+        dwFlags=KEYEVENTF_SCANCODE,
+        time=0,
+        dwExtraInfo=0,
+    )
+
+    # Number down
     inputs[1].type = INPUT_KEYBOARD
-    inputs[1].ki = KEYBDINPUT(wVk=vk_code, wScan=0, dwFlags=0, time=0, dwExtraInfo=0)
+    inputs[1].ki = KEYBDINPUT(
+        wVk=0,
+        wScan=num_scan,
+        dwFlags=KEYEVENTF_SCANCODE,
+        time=0,
+        dwExtraInfo=0,
+    )
+
+    # Number up
     inputs[2].type = INPUT_KEYBOARD
-    inputs[2].ki = KEYBDINPUT(wVk=vk_code, wScan=0, dwFlags=KEYEVENTF_KEYUP, time=0, dwExtraInfo=0)
+    inputs[2].ki = KEYBDINPUT(
+        wVk=0,
+        wScan=num_scan,
+        dwFlags=KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
+        time=0,
+        dwExtraInfo=0,
+    )
+
+    # CTRL up
     inputs[3].type = INPUT_KEYBOARD
-    inputs[3].ki = KEYBDINPUT(wVk=win32con.VK_LCONTROL, wScan=0, dwFlags=KEYEVENTF_KEYUP, time=0, dwExtraInfo=0)
+    inputs[3].ki = KEYBDINPUT(
+        wVk=0,
+        wScan=ctrl_scan,
+        dwFlags=KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
+        time=0,
+        dwExtraInfo=0,
+    )
 
     ctypes.windll.user32.SendInput(len(inputs), ctypes.byref(inputs), ctypes.sizeof(INPUT))
 
