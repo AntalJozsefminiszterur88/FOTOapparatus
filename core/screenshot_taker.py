@@ -92,6 +92,11 @@ def _capture_window(
                 print(f"HIBA: A '{title}' ablak nem került az előtérbe.")
                 return None
             time.sleep(0.01)
+        # Give the window a brief moment to fully receive focus before
+        # sending any key presses.  Without this delay, Discord sometimes
+        # misses the modifier key (e.g. Ctrl) when another application was
+        # previously in the foreground.
+        time.sleep(0.1)
 
         if pre_action:
             pre_action()
@@ -168,9 +173,14 @@ def _press_ctrl_number(number: int) -> None:
         return
     number = max(0, min(9, int(number)))
     vk_code = ord(str(number))
+    # Press and release the combination with small delays to ensure the
+    # modifier is registered by the target application.
     win32api.keybd_event(win32con.VK_LCONTROL, 0, 0, 0)
+    time.sleep(0.05)
     win32api.keybd_event(vk_code, 0, 0, 0)
+    time.sleep(0.05)
     win32api.keybd_event(vk_code, 0, win32con.KEYEVENTF_KEYUP, 0)
+    time.sleep(0.05)
     win32api.keybd_event(win32con.VK_LCONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
 
 
