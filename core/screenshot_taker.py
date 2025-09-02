@@ -86,20 +86,15 @@ def _capture_window(
             win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
         win32gui.SetForegroundWindow(hwnd)
 
-        # Ensure the window really moves to the foreground before capturing
-        for _ in range(20):
-            if win32gui.GetForegroundWindow() == hwnd:
-                break
-            time.sleep(0.05)
-            win32gui.SetForegroundWindow(hwnd)
-        else:
-            print(f"HIBA: A '{title}' ablak nem került az előtérbe.")
-            return None
+        start_time = time.time()
+        while win32gui.GetForegroundWindow() != hwnd:
+            if time.time() - start_time > 2:
+                print(f"HIBA: A '{title}' ablak nem került az előtérbe.")
+                return None
+            time.sleep(0.01)
 
         if pre_action:
             pre_action()
-
-        time.sleep(0.2)
 
         # Double-check foreground after pre_action
         if win32gui.GetForegroundWindow() != hwnd:
@@ -173,15 +168,10 @@ def _press_ctrl_number(number: int) -> None:
         return
     number = max(0, min(9, int(number)))
     vk_code = ord(str(number))
-    # Tartsuk lenyomva a Ctrl billentyűt egy kicsit hosszabban, majd nyomjuk meg
-    # egyszer a megadott számot, végül engedjük fel mindkettőt.
-    win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
-    time.sleep(0.2)
+    win32api.keybd_event(win32con.VK_LCONTROL, 0, 0, 0)
     win32api.keybd_event(vk_code, 0, 0, 0)
-    time.sleep(0.2)
     win32api.keybd_event(vk_code, 0, win32con.KEYEVENTF_KEYUP, 0)
-    time.sleep(0.1)
-    win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
+    win32api.keybd_event(win32con.VK_LCONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
 
 
 def _add_timestamp(img: Image.Image, position: str) -> None:
