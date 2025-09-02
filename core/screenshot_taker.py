@@ -19,7 +19,10 @@ if platform.system() == "Windows":
     import win32api
 
     # -- Canonical ctypes definitions for SendInput structures --
-    ULONG_PTR = wintypes.ULONG_PTR
+    # ``ctypes.wintypes`` may not expose ``ULONG_PTR`` on some Python versions
+    # (e.g. Python 3.12).  Falling back to ``ctypes.c_size_t`` ensures the
+    # structure uses an unsigned integer with the native pointer size.
+    ULONG_PTR = getattr(wintypes, "ULONG_PTR", ctypes.c_size_t)
 
     class MOUSEINPUT(ctypes.Structure):
         _fields_ = [
