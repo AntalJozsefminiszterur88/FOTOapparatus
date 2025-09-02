@@ -12,7 +12,7 @@ if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
 
 try:
-    from PySide6.QtCore import Slot, QRect, Qt, QCoreApplication, QStandardPaths, QRectF, QThread, Signal, QObject
+    from PySide6.QtCore import Slot, QRect, Qt, QCoreApplication, QStandardPaths, QRectF, QTimer
     from PySide6.QtWidgets import (
         QMainWindow,
         QWidget,
@@ -79,29 +79,6 @@ try:
 except NameError:
     ICON_PATH = os.path.join("assets", ICON_FILENAME)
 
-
-class CaptureWorker(QObject):
-    """Run a single capture function in a background thread."""
-
-    finished = Signal(object)
-    error = Signal(str)
-
-    def __init__(self, func, *args, **kwargs):
-        super().__init__()
-        self._func = func
-        self._args = args
-        self._kwargs = kwargs
-
-    @Slot()
-    def run(self):
-        try:
-            result = self._func(*self._args, **self._kwargs)
-        except Exception as exc:
-            self.error.emit(str(exc))
-        else:
-            self.finished.emit(result)
-
-
 class MainWindow(QMainWindow):
     BASE_WINDOW_TITLE = "FOTO-Apparátus"
 
@@ -138,8 +115,7 @@ class MainWindow(QMainWindow):
         self.is_dirty = False
         self.selection_overlay = None
         self.local_server = None
-        self._capture_thread = None
-        self._capture_worker = None
+        self._final_capture_params = None
 
         self._load_settings()
         self.discord_settings = self.settings.get(
@@ -478,9 +454,11 @@ class MainWindow(QMainWindow):
     @Slot()
     def _take_test_picture(self):
         logger.info("Teszt gomb megnyomva, azonnali képkészítés indítása.")
+        self.test_button.setEnabled(False)
         save_path = self.settings.get("save_path", "")
         if not save_path:
             QMessageBox.warning(self, "Hiányzó adat", "Nincs mentési mappa!")
+            self.test_button.setEnabled(True)
             return
 
         capture_type = (
@@ -495,35 +473,31 @@ class MainWindow(QMainWindow):
             ds = self.discord_settings or {}
             if not ds.get("window_title"):
                 QMessageBox.warning(self, "Hiányzó adat", "Válaszd ki a Discord ablakot a beállításokban.")
+                self.test_button.setEnabled(True)
                 return
 
             self.statusBar().showMessage(
                 "Discord teszt folyamatban... A kép kb. 10 másodperc múlva készül."
             )
+            try:
+                take_discord_screenshot(
+                    save_path,
+                    "Teszt",
+                    add_timestamp=include_timestamp,
+                    timestamp_position=timestamp_position,
+                    stay_foreground=True,
+                    use_hotkey=ds.get("use_hotkey", False),
+                    hotkey_number=ds.get("hotkey_number", 1),
+                    window_title=ds.get("window_title", "Discord"),
+                    delay_after_hotkey=2.0,
+                )
+            except Exception as e:
+                QMessageBox.warning(self, "Hiba", f"Nem sikerült képet készíteni: {e}")
+                self.test_button.setEnabled(True)
+                return
 
-            self._capture_thread = QThread(self)
-            self._capture_worker = CaptureWorker(
-                take_discord_screenshot,
-                save_path,
-                "Teszt",
-                add_timestamp=include_timestamp,
-                timestamp_position=timestamp_position,
-                stay_foreground=ds.get("stay_foreground", False),
-                use_hotkey=ds.get("use_hotkey", False),
-                hotkey_number=ds.get("hotkey_number", 1),
-                window_title=ds.get("window_title", "Discord"),
-                delay_after_hotkey=8.0,
-            )
-            self._capture_worker.moveToThread(self._capture_thread)
-            self._capture_thread.started.connect(self._capture_worker.run)
-            self._capture_worker.finished.connect(self.on_capture_finished)
-            self._capture_worker.error.connect(self.on_capture_error)
-            self._capture_worker.finished.connect(self._capture_thread.quit)
-            self._capture_worker.error.connect(self._capture_thread.quit)
-            self._capture_worker.finished.connect(self._capture_worker.deleteLater)
-            self._capture_worker.error.connect(self._capture_worker.deleteLater)
-            self._capture_thread.finished.connect(self._capture_thread.deleteLater)
-            self._capture_thread.start()
+            self._final_capture_params = (save_path, include_timestamp, timestamp_position)
+            QTimer.singleShot(7500, self._trigger_final_capture)
             return
 
         area = None
@@ -548,27 +522,32 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Hiba", "Nem sikerült képet készíteni.")
         else:
             self.statusBar().showMessage("Tesztkép elkészült.", 3000)
+        self.test_button.setEnabled(True)
 
-    @Slot(object)
-    def on_capture_finished(self, image):
-        if image is None:
-            QMessageBox.warning(self, "Hiba", "Nem sikerült képet készíteni.")
-        else:
-            self.statusBar().showMessage("Tesztkép elkészült.", 3000)
-        self._cleanup_capture_worker()
-
-    @Slot(str)
-    def on_capture_error(self, error_message):
-        QMessageBox.warning(self, "Hiba", f"Nem sikerült képet készíteni: {error_message}")
-        self._cleanup_capture_worker()
-
-    def _cleanup_capture_worker(self):
-        thread = getattr(self, "_capture_thread", None)
-        if thread:
-            thread.quit()
-            thread.wait()
-        self._capture_thread = None
-        self._capture_worker = None
+    @Slot()
+    def _trigger_final_capture(self):
+        params = getattr(self, "_final_capture_params", None)
+        if not params:
+            self.test_button.setEnabled(True)
+            return
+        save_path, include_timestamp, timestamp_position = params
+        self._final_capture_params = None
+        try:
+            img = take_screenshot(
+                save_path,
+                "Teszt",
+                None,
+                include_timestamp,
+                timestamp_position,
+                "",
+                "screenshot",
+            )
+            if img is None:
+                QMessageBox.warning(self, "Hiba", "Nem sikerült képet készíteni.")
+            else:
+                self.statusBar().showMessage("Tesztkép elkészült.", 3000)
+        finally:
+            self.test_button.setEnabled(True)
 
 
     def _update_ui_from_settings(self):
