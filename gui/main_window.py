@@ -422,7 +422,7 @@ class MainWindow(QMainWindow):
             capture_type = "program"
         else:
             capture_type = "screenshot"
-        size_enabled = capture_type == "screenshot"
+        size_enabled = capture_type in ("screenshot", "discord")
         window_enabled = capture_type == "program"
         self.size_widget.setEnabled(size_enabled)
         self.window_selector.setEnabled(window_enabled)
@@ -476,6 +476,13 @@ class MainWindow(QMainWindow):
                 self.test_button.setEnabled(True)
                 return
 
+            area = None
+            mode = self.size_widget.get_mode()
+            if mode == "custom":
+                rect = self.size_widget.get_custom_rect()
+                if rect.isValid():
+                    area = rect
+
             self.statusBar().showMessage(
                 "Discord teszt folyamatban... A kép kb. 10 másodperc múlva készül."
             )
@@ -483,6 +490,7 @@ class MainWindow(QMainWindow):
                 take_discord_screenshot(
                     save_path,
                     "Teszt",
+                    area,
                     add_timestamp=include_timestamp,
                     timestamp_position=timestamp_position,
                     stay_foreground=True,
@@ -496,7 +504,7 @@ class MainWindow(QMainWindow):
                 self.test_button.setEnabled(True)
                 return
 
-            self._final_capture_params = (save_path, include_timestamp, timestamp_position)
+            self._final_capture_params = (save_path, area, include_timestamp, timestamp_position)
             QTimer.singleShot(7500, self._trigger_final_capture)
             return
 
@@ -530,13 +538,13 @@ class MainWindow(QMainWindow):
         if not params:
             self.test_button.setEnabled(True)
             return
-        save_path, include_timestamp, timestamp_position = params
+        save_path, area, include_timestamp, timestamp_position = params
         self._final_capture_params = None
         try:
             img = take_screenshot(
                 save_path,
                 "Teszt",
-                None,
+                area,
                 include_timestamp,
                 timestamp_position,
                 "",

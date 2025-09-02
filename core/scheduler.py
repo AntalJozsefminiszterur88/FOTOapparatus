@@ -119,6 +119,7 @@ class Scheduler:
                     job_args = [
                         save_path,
                         "Kép",
+                        area_arg,
                         include_timestamp,
                         timestamp_position,
                         discord_settings.get("stay_foreground", False),
