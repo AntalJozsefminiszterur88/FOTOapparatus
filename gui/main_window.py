@@ -4,8 +4,6 @@ import sys
 import os
 import traceback
 import logging
-import time
-import platform
 
 # Ensure the core package is importable when running this file directly
 _current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -14,7 +12,7 @@ if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
 
 try:
-    from PySide6.QtCore import Slot, QRect, Qt, QCoreApplication, QStandardPaths, QRectF, QThread, QTimer, Signal, QObject
+    from PySide6.QtCore import Slot, QRect, Qt, QCoreApplication, QStandardPaths, QRectF, QThread, Signal, QObject
     from PySide6.QtWidgets import (
         QMainWindow,
         QWidget,
@@ -51,7 +49,6 @@ try:
     from core.screenshot_taker import (
         take_screenshot,
         take_discord_screenshot,
-        _press_ctrl_number,
     )
     # from PySide6.QtGui import QPainter, QPen, QBrush, QColor, QScreen, QPainterPath, QFont # Már importálva
 
@@ -83,19 +80,26 @@ except NameError:
     ICON_PATH = os.path.join("assets", ICON_FILENAME)
 
 
-class ActionWorker(QObject):
-    finished = Signal()
+class CaptureWorker(QObject):
+    """Run a single capture function in a background thread."""
 
-    def __init__(self, action_func):
+    finished = Signal(object)
+    error = Signal(str)
+
+    def __init__(self, func, *args, **kwargs):
         super().__init__()
-        self._action_func = action_func
+        self._func = func
+        self._args = args
+        self._kwargs = kwargs
 
     @Slot()
     def run(self):
         try:
-            self._action_func()
-        finally:
-            self.finished.emit()
+            result = self._func(*self._args, **self._kwargs)
+        except Exception as exc:
+            self.error.emit(str(exc))
+        else:
+            self.finished.emit(result)
 
 
 class MainWindow(QMainWindow):
@@ -134,6 +138,8 @@ class MainWindow(QMainWindow):
         self.is_dirty = False
         self.selection_overlay = None
         self.local_server = None
+        self._capture_thread = None
+        self._capture_worker = None
 
         self._load_settings()
         self.discord_settings = self.settings.get(
@@ -491,25 +497,33 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Hiányzó adat", "Válaszd ki a Discord ablakot a beállításokban.")
                 return
 
-            self._test_save_path = save_path
-            self._test_include_timestamp = include_timestamp
-            self._test_timestamp_position = timestamp_position
-
             self.statusBar().showMessage(
-                "Discord test... Screenshot will be taken in 10 seconds.", 10000
+                "Discord teszt folyamatban... A kép kb. 10 másodperc múlva készül."
             )
 
-            QTimer.singleShot(10000, self._trigger_final_capture)
-
-            self._action_thread = QThread(self)
-            self._action_worker = ActionWorker(self._perform_discord_actions)
-            self._action_worker.moveToThread(self._action_thread)
-            self._action_thread.started.connect(self._action_worker.run)
-            self._action_worker.finished.connect(self._action_thread.quit)
-            self._action_worker.finished.connect(self._action_worker.deleteLater)
-            self._action_thread.finished.connect(self._action_thread.deleteLater)
-            self._action_thread.start()
-
+            self._capture_thread = QThread(self)
+            self._capture_worker = CaptureWorker(
+                take_discord_screenshot,
+                save_path,
+                "Teszt",
+                add_timestamp=include_timestamp,
+                timestamp_position=timestamp_position,
+                stay_foreground=ds.get("stay_foreground", False),
+                use_hotkey=ds.get("use_hotkey", False),
+                hotkey_number=ds.get("hotkey_number", 1),
+                window_title=ds.get("window_title", "Discord"),
+                delay_after_hotkey=8.0,
+            )
+            self._capture_worker.moveToThread(self._capture_thread)
+            self._capture_thread.started.connect(self._capture_worker.run)
+            self._capture_worker.finished.connect(self.on_capture_finished)
+            self._capture_worker.error.connect(self.on_capture_error)
+            self._capture_worker.finished.connect(self._capture_thread.quit)
+            self._capture_worker.error.connect(self._capture_thread.quit)
+            self._capture_worker.finished.connect(self._capture_worker.deleteLater)
+            self._capture_worker.error.connect(self._capture_worker.deleteLater)
+            self._capture_thread.finished.connect(self._capture_thread.deleteLater)
+            self._capture_thread.start()
             return
 
         area = None
@@ -535,66 +549,26 @@ class MainWindow(QMainWindow):
         else:
             self.statusBar().showMessage("Tesztkép elkészült.", 3000)
 
-    @Slot()
-    def _trigger_final_capture(self):
-        save_path = getattr(self, "_test_save_path", "")
-        include_timestamp = getattr(self, "_test_include_timestamp", True)
-        timestamp_position = getattr(self, "_test_timestamp_position", "top-left")
-
-        img = take_screenshot(
-            save_path,
-            "Teszt",
-            area=None,
-            add_timestamp=include_timestamp,
-            timestamp_position=timestamp_position,
-            capture_type="screenshot",
-        )
-
-        if img is None:
+    @Slot(object)
+    def on_capture_finished(self, image):
+        if image is None:
             QMessageBox.warning(self, "Hiba", "Nem sikerült képet készíteni.")
         else:
             self.statusBar().showMessage("Tesztkép elkészült.", 3000)
+        self._cleanup_capture_worker()
 
-    def _perform_discord_actions(self):
-        ds = self.discord_settings or {}
-        window_title = ds.get("window_title", "Discord")
-        hotkey_number = ds.get("hotkey_number", 1)
+    @Slot(str)
+    def on_capture_error(self, error_message):
+        QMessageBox.warning(self, "Hiba", f"Nem sikerült képet készíteni: {error_message}")
+        self._cleanup_capture_worker()
 
-        if platform.system() != "Windows":
-            return
-
-        try:
-            import win32gui
-            import win32con
-        except Exception:
-            return
-
-        hwnd = None
-
-        def _enum(hwnd_in, _):
-            nonlocal hwnd
-            if not win32gui.IsWindowVisible(hwnd_in):
-                return True
-            if window_title.lower() in win32gui.GetWindowText(hwnd_in).lower():
-                hwnd = hwnd_in
-                return False
-            return True
-
-        win32gui.EnumWindows(_enum, None)
-        if not hwnd:
-            return
-
-        if win32gui.IsIconic(hwnd):
-            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-        win32gui.SetForegroundWindow(hwnd)
-
-        start_time = time.time()
-        while win32gui.GetForegroundWindow() != hwnd:
-            if time.time() - start_time > 2:
-                return
-            time.sleep(0.01)
-
-        _press_ctrl_number(hotkey_number)
+    def _cleanup_capture_worker(self):
+        thread = getattr(self, "_capture_thread", None)
+        if thread:
+            thread.quit()
+            thread.wait()
+        self._capture_thread = None
+        self._capture_worker = None
 
 
     def _update_ui_from_settings(self):
