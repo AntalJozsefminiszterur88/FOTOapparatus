@@ -9,6 +9,7 @@ import ctypes
 from PIL import Image, ImageDraw, ImageFont, ImageGrab
 
 import platform
+import pyautogui
 
 if platform.system() == "Windows":
     import win32con
@@ -97,6 +98,23 @@ def _capture_window(
         # misses the modifier key (e.g. Ctrl) when another application was
         # previously in the foreground.
         time.sleep(0.1)
+
+        # Ensure the window is truly active by clicking a known pixel
+        start_time = time.time()
+        expected_color = (50, 51, 57)
+        clicked = False
+        while time.time() - start_time < 2:
+            try:
+                pixel_color = pyautogui.pixel(1913, 53)
+            except Exception:
+                pixel_color = None
+            if pixel_color and all(abs(pixel_color[i] - expected_color[i]) <= 5 for i in range(3)):
+                pyautogui.click(1913, 53)
+                clicked = True
+                break
+            time.sleep(0.1)
+        if not clicked:
+            return None
 
         if pre_action:
             pre_action()
