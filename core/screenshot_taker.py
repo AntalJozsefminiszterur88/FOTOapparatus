@@ -282,6 +282,7 @@ def take_screenshot(
 def take_discord_screenshot(
     save_directory: str,
     filename_prefix: str = "Kép",
+    area: Optional[object] = None,
     add_timestamp: bool = False,
     timestamp_position: str = "top-left",
     stay_foreground: bool = False,
@@ -299,14 +300,44 @@ def take_discord_screenshot(
             print(f"Waiting {delay_after_hotkey} seconds for Discord UI to update...")
             time.sleep(delay_after_hotkey)
 
+    original_hwnd = None
+    if area is not None and platform.system() == "Windows" and not stay_foreground:
+        try:
+            original_hwnd = win32gui.GetForegroundWindow()
+        except Exception:
+            original_hwnd = None
+
     img = _capture_window(
         window_title or "Discord",
         pre_action=pre_action,
-        restore_foreground=not stay_foreground,
+        restore_foreground=area is None and not stay_foreground,
         executable="discord.exe",
     )
     if img is None:
         return None
+
+    if area is not None:
+        region = None
+        try:
+            from PySide6.QtCore import QRect
+            if isinstance(area, QRect):
+                region = (area.x(), area.y(), area.x() + area.width(), area.y() + area.height())
+            else:
+                region = (
+                    int(area[0]),
+                    int(area[1]),
+                    int(area[0]) + int(area[2]),
+                    int(area[1]) + int(area[3]),
+                )
+        except Exception:
+            region = None
+        if region:
+            img = _capture_screen(region)
+        if original_hwnd and platform.system() == "Windows" and not stay_foreground:
+            try:
+                win32gui.SetForegroundWindow(original_hwnd)
+            except Exception:
+                print("Figyelmeztetés: Az eredeti ablakot nem sikerült visszaállítani az előtérbe.")
     if add_timestamp:
         _add_timestamp(img, timestamp_position)
 
