@@ -297,6 +297,7 @@ def take_discord_screenshot(
     use_hotkey: bool = False,
     hotkey_number: int = 1,
     window_title: str = "Discord",
+    delay_after_hotkey: float = 5.0,
 ) -> Optional[Image.Image]:
     """Capture a screenshot of the Discord window.
 
@@ -318,7 +319,8 @@ def take_discord_screenshot(
             # Discord a brief period to react to the shortcut before the
             # screenshot is taken.
             _press_ctrl_number(hotkey_number)
-            time.sleep(2)
+            print(f"Waiting {delay_after_hotkey} seconds for Discord UI to update...")
+            time.sleep(delay_after_hotkey)
 
     img = _capture_window(
         window_title or "Discord",
