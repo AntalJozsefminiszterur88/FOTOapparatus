@@ -5,7 +5,6 @@ import time
 from datetime import datetime
 from typing import Optional
 import ctypes
-from ctypes import wintypes
 
 from PIL import Image, ImageDraw, ImageFont, ImageGrab
 
@@ -17,52 +16,6 @@ if platform.system() == "Windows":
     import win32ui
     import win32process
     import win32api
-
-    # -- Canonical ctypes definitions for SendInput structures --
-    # ``ctypes.wintypes`` may not expose ``ULONG_PTR`` on some Python versions
-    # (e.g. Python 3.12).  Falling back to ``ctypes.c_size_t`` ensures the
-    # structure uses an unsigned integer with the native pointer size.
-    ULONG_PTR = getattr(wintypes, "ULONG_PTR", ctypes.c_size_t)
-
-    class MOUSEINPUT(ctypes.Structure):
-        _fields_ = [
-            ("dx", wintypes.LONG),
-            ("dy", wintypes.LONG),
-            ("mouseData", wintypes.DWORD),
-            ("dwFlags", wintypes.DWORD),
-            ("time", wintypes.DWORD),
-            ("dwExtraInfo", ULONG_PTR),
-        ]
-
-    class KEYBDINPUT(ctypes.Structure):
-        _fields_ = [
-            ("wVk", wintypes.WORD),
-            ("wScan", wintypes.WORD),
-            ("dwFlags", wintypes.DWORD),
-            ("time", wintypes.DWORD),
-            ("dwExtraInfo", ULONG_PTR),
-        ]
-
-    class HARDWAREINPUT(ctypes.Structure):
-        _fields_ = [
-            ("uMsg", wintypes.DWORD),
-            ("wParamL", wintypes.WORD),
-            ("wParamH", wintypes.WORD),
-        ]
-
-    class INPUT_union(ctypes.Union):
-        _fields_ = [
-            ("mi", MOUSEINPUT),
-            ("ki", KEYBDINPUT),
-            ("hi", HARDWAREINPUT),
-        ]
-
-    class INPUT(ctypes.Structure):
-        _anonymous_ = ("union",)
-        _fields_ = [
-            ("type", wintypes.DWORD),
-            ("union", INPUT_union),
-        ]
 
 PW_RENDERFULLCONTENT = 0x00000002
 
@@ -216,65 +169,19 @@ def _capture_screen(region: Optional[tuple[int, int, int, int]] = None) -> Image
 
 
 def _press_ctrl_number(number: int) -> None:
-    """Send a ``Ctrl`` + ``number`` key sequence using ``SendInput``."""
     if platform.system() != "Windows":
         return
-
     number = max(0, min(9, int(number)))
     vk_code = ord(str(number))
-
-    INPUT_KEYBOARD = 1
-    KEYEVENTF_KEYUP = 0x0002
-    KEYEVENTF_SCANCODE = 0x0008
-    KEYEVENTF_EXTENDEDKEY = 0x0001
-
-    # Map virtual keys to hardware scan codes
-    ctrl_scan = win32api.MapVirtualKey(win32con.VK_LCONTROL, 0)
-    num_scan = win32api.MapVirtualKey(vk_code, 0)
-
-    inputs = (INPUT * 4)()
-
-    # CTRL down
-    inputs[0].type = INPUT_KEYBOARD
-    inputs[0].ki = KEYBDINPUT(
-        wVk=0,
-        wScan=ctrl_scan,
-        dwFlags=KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY,
-        time=0,
-        dwExtraInfo=0,
-    )
-
-    # Number down
-    inputs[1].type = INPUT_KEYBOARD
-    inputs[1].ki = KEYBDINPUT(
-        wVk=0,
-        wScan=num_scan,
-        dwFlags=KEYEVENTF_SCANCODE,
-        time=0,
-        dwExtraInfo=0,
-    )
-
-    # Number up
-    inputs[2].type = INPUT_KEYBOARD
-    inputs[2].ki = KEYBDINPUT(
-        wVk=0,
-        wScan=num_scan,
-        dwFlags=KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP,
-        time=0,
-        dwExtraInfo=0,
-    )
-
-    # CTRL up
-    inputs[3].type = INPUT_KEYBOARD
-    inputs[3].ki = KEYBDINPUT(
-        wVk=0,
-        wScan=ctrl_scan,
-        dwFlags=KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,
-        time=0,
-        dwExtraInfo=0,
-    )
-
-    ctypes.windll.user32.SendInput(len(inputs), ctypes.byref(inputs), ctypes.sizeof(INPUT))
+    # Tartsuk lenyomva a Ctrl billentyűt egy kicsit hosszabban, majd nyomjuk meg
+    # egyszer a megadott számot, végül engedjük fel mindkettőt.
+    win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
+    time.sleep(0.2)
+    win32api.keybd_event(vk_code, 0, 0, 0)
+    time.sleep(0.2)
+    win32api.keybd_event(vk_code, 0, win32con.KEYEVENTF_KEYUP, 0)
+    time.sleep(0.1)
+    win32api.keybd_event(win32con.VK_CONTROL, 0, win32con.KEYEVENTF_KEYUP, 0)
 
 
 def _add_timestamp(img: Image.Image, position: str) -> None:
@@ -365,24 +272,11 @@ def take_discord_screenshot(
     window_title: str = "Discord",
     delay_after_hotkey: float = 2.0,
 ) -> Optional[Image.Image]:
-    """Capture a screenshot of the Discord window.
-
-    When ``use_hotkey`` is ``True`` the function brings Discord to the
-    foreground, sends a ``Ctrl`` + number key sequence using ``SendInput`` and
-    waits for ``delay_after_hotkey`` seconds to allow the Discord interface to
-    update before capturing the image.
-
-    Parameters are identical to :func:`take_screenshot` with a few Discord
-    specific options.
-    """
-
     pre_action = None
     if use_hotkey:
         def pre_action():
-            # Bring Discord to the foreground (handled by _capture_window)
-            # and execute the hotkey sequence before capturing. Allow
-            # Discord a brief period to react to the shortcut before the
-            # screenshot is taken.
+            # Bring Discord to the foreground (handled by _capture_window),
+            # press the hotkey first, then give Discord time to update
             _press_ctrl_number(hotkey_number)
             print(f"Waiting {delay_after_hotkey} seconds for Discord UI to update...")
             time.sleep(delay_after_hotkey)
