@@ -260,7 +260,7 @@ def take_discord_screenshot(
     use_hotkey: bool = False,
     hotkey_number: int = 1,
     window_title: str = "Discord",
-    delay_after_hotkey: float = 2.0,
+    delay_after_hotkey: float = 10.0,
 ) -> Optional[Image.Image]:
     pre_action = None
     if use_hotkey:
