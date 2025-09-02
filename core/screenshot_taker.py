@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 from typing import Optional
 import ctypes
+from ctypes import wintypes
 
 from PIL import Image, ImageDraw, ImageFont, ImageGrab
 
@@ -16,6 +17,49 @@ if platform.system() == "Windows":
     import win32ui
     import win32process
     import win32api
+
+    # -- Canonical ctypes definitions for SendInput structures --
+    ULONG_PTR = wintypes.ULONG_PTR
+
+    class MOUSEINPUT(ctypes.Structure):
+        _fields_ = [
+            ("dx", wintypes.LONG),
+            ("dy", wintypes.LONG),
+            ("mouseData", wintypes.DWORD),
+            ("dwFlags", wintypes.DWORD),
+            ("time", wintypes.DWORD),
+            ("dwExtraInfo", ULONG_PTR),
+        ]
+
+    class KEYBDINPUT(ctypes.Structure):
+        _fields_ = [
+            ("wVk", wintypes.WORD),
+            ("wScan", wintypes.WORD),
+            ("dwFlags", wintypes.DWORD),
+            ("time", wintypes.DWORD),
+            ("dwExtraInfo", ULONG_PTR),
+        ]
+
+    class HARDWAREINPUT(ctypes.Structure):
+        _fields_ = [
+            ("uMsg", wintypes.DWORD),
+            ("wParamL", wintypes.WORD),
+            ("wParamH", wintypes.WORD),
+        ]
+
+    class INPUT_union(ctypes.Union):
+        _fields_ = [
+            ("mi", MOUSEINPUT),
+            ("ki", KEYBDINPUT),
+            ("hi", HARDWAREINPUT),
+        ]
+
+    class INPUT(ctypes.Structure):
+        _anonymous_ = ("union",)
+        _fields_ = [
+            ("type", wintypes.DWORD),
+            ("union", INPUT_union),
+        ]
 
 PW_RENDERFULLCONTENT = 0x00000002
 
@@ -169,58 +213,27 @@ def _capture_screen(region: Optional[tuple[int, int, int, int]] = None) -> Image
 
 
 def _press_ctrl_number(number: int) -> None:
-    """Send a ``Ctrl`` + ``number`` key sequence using ``SendInput``.
-
-    The function presses ``VK_LCONTROL`` and the virtual key code for the
-    given digit in sequence, then releases them in reverse order. ``SendInput``
-    is used instead of ``keybd_event`` to ensure the combination is registered
-    by modern applications like Discord.
-
-    Parameters
-    ----------
-    number: int
-        The digit (0-9) to send while Ctrl is held.
-    """
-
+    """Send a ``Ctrl`` + ``number`` key sequence using ``SendInput``."""
     if platform.system() != "Windows":
         return
 
     number = max(0, min(9, int(number)))
     vk_code = ord(str(number))
 
-    user32 = ctypes.windll.user32
-
     INPUT_KEYBOARD = 1
     KEYEVENTF_KEYUP = 0x0002
 
-    class KEYBDINPUT(ctypes.Structure):
-        _fields_ = [
-            ("wVk", ctypes.c_ushort),
-            ("wScan", ctypes.c_ushort),
-            ("dwFlags", ctypes.c_uint),
-            ("time", ctypes.c_uint),
-            ("dwExtraInfo", ctypes.c_size_t),
-        ]
+    inputs = (INPUT * 4)()
+    inputs[0].type = INPUT_KEYBOARD
+    inputs[0].ki = KEYBDINPUT(wVk=win32con.VK_LCONTROL, wScan=0, dwFlags=0, time=0, dwExtraInfo=0)
+    inputs[1].type = INPUT_KEYBOARD
+    inputs[1].ki = KEYBDINPUT(wVk=vk_code, wScan=0, dwFlags=0, time=0, dwExtraInfo=0)
+    inputs[2].type = INPUT_KEYBOARD
+    inputs[2].ki = KEYBDINPUT(wVk=vk_code, wScan=0, dwFlags=KEYEVENTF_KEYUP, time=0, dwExtraInfo=0)
+    inputs[3].type = INPUT_KEYBOARD
+    inputs[3].ki = KEYBDINPUT(wVk=win32con.VK_LCONTROL, wScan=0, dwFlags=KEYEVENTF_KEYUP, time=0, dwExtraInfo=0)
 
-    class INPUT(ctypes.Structure):
-        class _U(ctypes.Union):
-            _fields_ = [("ki", KEYBDINPUT)]
-
-        _anonymous_ = ("u",)
-        _fields_ = [("type", ctypes.c_uint), ("u", _U)]
-
-    def _send(vk: int, flags: int = 0) -> None:
-        ki = KEYBDINPUT(wVk=vk, wScan=0, dwFlags=flags, time=0, dwExtraInfo=0)
-        inp = INPUT(type=INPUT_KEYBOARD, ki=ki)
-        user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp))
-
-    # Press and release the keys with brief pauses to mimic real input.
-    _send(win32con.VK_LCONTROL)
-    time.sleep(0.05)
-    _send(vk_code)
-    _send(vk_code, KEYEVENTF_KEYUP)
-    time.sleep(0.05)
-    _send(win32con.VK_LCONTROL, KEYEVENTF_KEYUP)
+    ctypes.windll.user32.SendInput(len(inputs), ctypes.byref(inputs), ctypes.sizeof(INPUT))
 
 
 def _add_timestamp(img: Image.Image, position: str) -> None:
