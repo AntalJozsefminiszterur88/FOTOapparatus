@@ -21,7 +21,7 @@ except ImportError:
     from screenshot_taker import take_screenshot
 
 # PySide6 import a QRect-hez (ha a terület konverziót itt végezzük)
-from PySide6.QtCore import QRect
+from PySide6.QtCore import QRect, QTimer
 
 # Logging beállítása
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -43,6 +43,43 @@ class Scheduler:
         self.scheduler = BackgroundScheduler(daemon=True, timezone='Europe/Budapest')
         self.current_settings = None # Itt tároljuk az aktuális beállításokat
         logger.info("Scheduler inicializálva (Timezone: Europe/Budapest).")
+
+    def _run_discord_capture(
+        self,
+        save_path,
+        filename_prefix,
+        area,
+        include_timestamp,
+        timestamp_position,
+        stay_foreground,
+        use_hotkey,
+        hotkey_number,
+        window_title,
+        delay_after_hotkey,
+    ):
+        """Invoke Discord screenshot capture on the Qt main thread.
+
+        APScheduler futtatja a feladatokat háttérszálon, ami néha
+        akadályozhatja a fókuszváltást, ha az alkalmazás tálcára van
+        minimalizálva. A ``QTimer.singleShot`` segítségével a képkészítés
+        a Qt fő szálára kerül, így megegyezik a teszt gomb viselkedésével.
+        """
+
+        QTimer.singleShot(
+            0,
+            lambda: take_discord_screenshot(
+                save_path,
+                filename_prefix,
+                area,
+                include_timestamp,
+                timestamp_position,
+                stay_foreground,
+                use_hotkey,
+                hotkey_number,
+                window_title,
+                delay_after_hotkey,
+            ),
+        )
 
     def _schedule_jobs(self):
         """
@@ -115,7 +152,7 @@ class Scheduler:
                     if not discord_settings.get("window_title"):
                         logger.warning("Discord ablak nincs kiválasztva, a feladat kihagyva.")
                         continue
-                    job_func = take_discord_screenshot
+                    job_func = self._run_discord_capture
                     job_args = [
                         save_path,
                         "Kép",
@@ -126,6 +163,7 @@ class Scheduler:
                         discord_settings.get("use_hotkey", False),
                         discord_settings.get("hotkey_number", 1),
                         discord_settings.get("window_title", "Discord"),
+                        discord_settings.get("delay_after_hotkey", 2.0),
                     ]
                 else:
                     job_func = take_screenshot
