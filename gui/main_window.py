@@ -104,9 +104,9 @@ class MainWindow(QMainWindow):
         # A kicsit szélesebb alapméret biztosítja, hogy
         # az "Indítás a Windows-zal" felirat ne törjön meg.
         base_width = 600
-        base_height = 500 + 70  # extend height by 70 pixels
+        base_height = 570  # increased by 70px to show more schedule dates
         self.resize(base_width, base_height)
-        self.setMinimumWidth(base_width)
+        self.setMinimumSize(base_width, base_height)
         self._current_width = base_width
 
         self.config_manager = ConfigManager()
