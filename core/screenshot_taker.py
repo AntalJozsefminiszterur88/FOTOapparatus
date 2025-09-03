@@ -291,33 +291,11 @@ def take_discord_screenshot(
     window_title: str = "Discord",
     delay_after_hotkey: float = 10.0,
 ) -> Optional[Image.Image]:
-    pre_action = None
-    if use_hotkey:
-        def pre_action():
-            # Bring Discord to the foreground (handled by _capture_window),
-            # press the hotkey first, then give Discord time to update
-            _press_ctrl_number(hotkey_number)
-            print(f"Waiting {delay_after_hotkey} seconds for Discord UI to update...")
-            time.sleep(delay_after_hotkey)
+    """Take a Discord screenshot using the two-step capture process."""
 
-    original_hwnd = None
-    if area is not None and platform.system() == "Windows" and not stay_foreground:
-        try:
-            original_hwnd = win32gui.GetForegroundWindow()
-        except Exception:
-            original_hwnd = None
-
-    img = _capture_window(
-        window_title or "Discord",
-        pre_action=pre_action,
-        restore_foreground=area is None and not stay_foreground,
-        executable="discord.exe",
-    )
-    if img is None:
-        return None
-
+    # Determine capture region from *area*
+    region = None
     if area is not None:
-        region = None
         try:
             from PySide6.QtCore import QRect
             if isinstance(area, QRect):
@@ -331,27 +309,67 @@ def take_discord_screenshot(
                 )
         except Exception:
             region = None
-        if region:
-            img = _capture_screen(region)
-        if original_hwnd and platform.system() == "Windows" and not stay_foreground:
+
+    # Save the current foreground window to restore later
+    original_hwnd = None
+    if platform.system() == "Windows":
+        try:
+            original_hwnd = win32gui.GetForegroundWindow()
+        except Exception:
+            original_hwnd = None
+
+    # Pre-action for Discord hotkey
+    pre_action = None
+    if use_hotkey:
+        def pre_action():
+            _press_ctrl_number(hotkey_number)
+
+    final_img: Optional[Image.Image] = None
+    try:
+        # Bring Discord to foreground and execute the hotkey
+        img = _capture_window(
+            window_title or "Discord",
+            restore_foreground=False,
+            pre_action=pre_action,
+            executable="discord.exe",
+        )
+        if img is None:
+            return None
+
+        # Allow Discord UI to update after the hotkey press
+        time.sleep(delay_after_hotkey)
+
+        # Capture the desired screen region (or full screen)
+        final_img = _capture_screen(region)
+        if final_img is None:
+            return None
+
+        if add_timestamp:
+            _add_timestamp(final_img, timestamp_position)
+
+        os.makedirs(save_directory, exist_ok=True)
+        timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
+        filename = f"{filename_prefix}_{timestamp_for_filename}.png"
+        save_path = os.path.join(save_directory, filename)
+        try:
+            final_img.save(save_path)
+            print(f"Képernyőkép sikeresen elmentve: {save_path}")
+        except Exception as exc:
+            print(f"HIBA: Nem sikerült elmenteni a képernyőképet ide: {save_path} - {exc}")
+            return None
+
+        return final_img
+    finally:
+        if (
+            not stay_foreground
+            and platform.system() == "Windows"
+            and original_hwnd
+            and win32gui.IsWindow(original_hwnd)
+        ):
             try:
                 win32gui.SetForegroundWindow(original_hwnd)
             except Exception:
                 print("Figyelmeztetés: Az eredeti ablakot nem sikerült visszaállítani az előtérbe.")
-    if add_timestamp:
-        _add_timestamp(img, timestamp_position)
-
-    os.makedirs(save_directory, exist_ok=True)
-    timestamp_for_filename = datetime.now().strftime("%Y_%m_%d_%H-%M-%S")
-    filename = f"{filename_prefix}_{timestamp_for_filename}.png"
-    save_path = os.path.join(save_directory, filename)
-    try:
-        img.save(save_path)
-        print(f"Képernyőkép sikeresen elmentve: {save_path}")
-    except Exception as exc:
-        print(f"HIBA: Nem sikerült elmenteni a képernyőképet ide: {save_path} - {exc}")
-        return None
-    return img
 
 
 if __name__ == "__main__":
