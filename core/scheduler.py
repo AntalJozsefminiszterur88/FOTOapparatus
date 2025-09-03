@@ -21,7 +21,7 @@ except ImportError:
     from screenshot_taker import take_screenshot
 
 # PySide6 importok a QRect-hez és a főszálon történő híváshoz
-from PySide6.QtCore import QRect, QTimer
+from PySide6.QtCore import QCoreApplication, QRect, QTimer
 
 # Logging beállítása
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -57,11 +57,37 @@ class Scheduler:
         window_title,
         delay_after_hotkey,
     ):
-        """Delegate Discord capture to the Qt main thread using QTimer."""
+        """Delegate Discord capture to the Qt main thread using QTimer.
 
-        QTimer.singleShot(
-            0,
-            lambda: take_discord_screenshot(
+        APScheduler futása külön szálon történik, ami nem rendelkezik Qt
+        eseményciklussal. Ezért az egyidejűleg futó főszál Qt eseményciklusába
+        kell ütemeznünk a képkészítő függvény hívását, különben nem történik
+        semmi. A ``QCoreApplication`` példányának továbbításával a
+        ``singleShot`` garantáltan a főszálon fog lefutni.
+        """
+
+        app = QCoreApplication.instance()
+        if app is not None:
+            QTimer.singleShot(
+                0,
+                app,
+                lambda: take_discord_screenshot(
+                    save_path,
+                    filename_prefix,
+                    area,
+                    include_timestamp,
+                    timestamp_position,
+                    stay_foreground,
+                    use_hotkey,
+                    hotkey_number,
+                    window_title,
+                    delay_after_hotkey,
+                ),
+            )
+        else:
+            # Ha valamiért nincs Qt alkalmazás, próbáljuk meg közvetlenül
+            # meghívni (pl. tesztkörnyezetben)
+            take_discord_screenshot(
                 save_path,
                 filename_prefix,
                 area,
@@ -72,8 +98,7 @@ class Scheduler:
                 hotkey_number,
                 window_title,
                 delay_after_hotkey,
-            ),
-        )
+            )
 
     def _schedule_jobs(self):
         """
