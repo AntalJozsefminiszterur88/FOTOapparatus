@@ -20,8 +20,9 @@ except ImportError:
     # Ha önállóan futtatjuk teszteléshez
     from screenshot_taker import take_screenshot
 
-# PySide6 import a QRect-hez (ha a terület konverziót itt végezzük)
-from PySide6.QtCore import QRect, QTimer
+# PySide6 importok a QRect-hez és a főszálon történő híváshoz
+from PySide6.QtCore import QRect, QMetaObject, Qt
+from PySide6.QtWidgets import QApplication
 
 # Logging beállítása
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -61,12 +62,13 @@ class Scheduler:
 
         APScheduler futtatja a feladatokat háttérszálon, ami néha
         akadályozhatja a fókuszváltást, ha az alkalmazás tálcára van
-        minimalizálva. A ``QTimer.singleShot`` segítségével a képkészítés
-        a Qt fő szálára kerül, így megegyezik a teszt gomb viselkedésével.
+        minimalizálva. A ``QMetaObject.invokeMethod`` segítségével a
+        képkészítés a Qt fő szálára kerül, így megegyezik a teszt gomb
+        viselkedésével.
         """
 
-        QTimer.singleShot(
-            0,
+        QMetaObject.invokeMethod(
+            QApplication.instance(),
             lambda: take_discord_screenshot(
                 save_path,
                 filename_prefix,
@@ -79,6 +81,7 @@ class Scheduler:
                 window_title,
                 delay_after_hotkey,
             ),
+            Qt.QueuedConnection,
         )
 
     def _schedule_jobs(self):
