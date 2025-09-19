@@ -3,6 +3,7 @@
 import sys
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 
 # Sys.path módosítás a biztonság kedvéért (főleg EXE-hez)
 try:
@@ -34,10 +35,17 @@ def main():
     os.makedirs(log_dir, exist_ok=True)
     log_file_path = os.path.join(log_dir, "fotoapp.log")
     
+    file_handler = RotatingFileHandler(
+        log_file_path,
+        maxBytes=10 * 1024 * 1024,
+        backupCount=0,
+        encoding='utf-8',
+    )
+    stream_handler = logging.StreamHandler(sys.stdout)
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[logging.FileHandler(log_file_path, encoding='utf-8'), logging.StreamHandler(sys.stdout)]
+        handlers=[file_handler, stream_handler],
     )
     
     QCoreApplication.setOrganizationName(ORG_NAME)

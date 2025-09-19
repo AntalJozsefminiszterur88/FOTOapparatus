@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from datetime import datetime
@@ -19,6 +20,9 @@ if platform.system() == "Windows":
     import win32api
 
 PW_RENDERFULLCONTENT = 0x00000002
+
+
+logger = logging.getLogger(__name__)
 
 
 def _capture_window(
@@ -90,7 +94,7 @@ def _capture_window(
         start_time = time.time()
         while win32gui.GetForegroundWindow() != hwnd:
             if time.time() - start_time > 2:
-                print(f"HIBA: A '{title}' ablak nem került az előtérbe.")
+                logger.error("A '%s' ablak nem került az előtérbe.", title)
                 return None
             time.sleep(0.01)
         # Give the window a brief moment to fully receive focus before
@@ -121,7 +125,7 @@ def _capture_window(
 
         # Double-check foreground after pre_action
         if win32gui.GetForegroundWindow() != hwnd:
-            print(f"HIBA: A '{title}' ablak időközben elvesztette az előtér státuszát.")
+            logger.error("A '%s' ablak időközben elvesztette az előtér státuszát.", title)
             return None
 
         window_rect = win32gui.GetWindowRect(hwnd)
@@ -167,8 +171,8 @@ def _capture_window(
         
         return img
 
-    except Exception as e:
-        print(f"HIBA a '{title}' ablak rögzítése közben: {e}")
+    except Exception:
+        logger.exception("Hiba a '%s' ablak rögzítése közben.", title)
         return None
     finally:
         # --- A VÉGSŐ JAVÍTÁS ---
@@ -177,7 +181,7 @@ def _capture_window(
             try:
                 win32gui.SetForegroundWindow(original_foreground_hwnd)
             except Exception:
-                print("Figyelmeztetés: Az eredeti ablakot nem sikerült visszaállítani az előtérbe.")
+                logger.warning("Az eredeti ablakot nem sikerült visszaállítani az előtérbe.")
 
         user32.AttachThreadInput(current_thread_id, target_thread_id, False)
 
@@ -254,7 +258,10 @@ def take_screenshot(
     if capture_type == "program":
         img = _capture_window(window_title)
         if img is None:
-            print(f"HIBA: A '{window_title}' ablak nem található, vagy a fókusz-kikényszerítés ellenére sem sikerült képet készíteni.")
+            logger.error(
+                "A '%s' ablak nem található, vagy a fókusz-kikényszerítés ellenére sem sikerült képet készíteni.",
+                window_title,
+            )
     else:
         img = _capture_screen(region)
 
@@ -271,9 +278,9 @@ def take_screenshot(
 
     try:
         img.save(save_path)
-        print(f"Képernyőkép sikeresen elmentve: {save_path}")
+        logger.info("Képernyőkép sikeresen elmentve: %s", save_path)
     except Exception as exc:
-        print(f"HIBA: Nem sikerült elmenteni a képernyőképet ide: {save_path} - {exc}")
+        logger.error("Nem sikerült elmenteni a képernyőképet ide: %s - %s", save_path, exc)
         return None
 
     return img
@@ -353,9 +360,9 @@ def take_discord_screenshot(
         save_path = os.path.join(save_directory, filename)
         try:
             final_img.save(save_path)
-            print(f"Képernyőkép sikeresen elmentve: {save_path}")
+            logger.info("Képernyőkép sikeresen elmentve: %s", save_path)
         except Exception as exc:
-            print(f"HIBA: Nem sikerült elmenteni a képernyőképet ide: {save_path} - {exc}")
+            logger.error("Nem sikerült elmenteni a képernyőképet ide: %s - %s", save_path, exc)
             return None
 
         return final_img
@@ -369,15 +376,15 @@ def take_discord_screenshot(
             try:
                 win32gui.SetForegroundWindow(original_hwnd)
             except Exception:
-                print("Figyelmeztetés: Az eredeti ablakot nem sikerült visszaállítani az előtérbe.")
+                logger.warning("Az eredeti ablakot nem sikerült visszaállítani az előtérbe.")
 
 
 if __name__ == "__main__":
     out_dir = os.path.join(os.path.expanduser("~"), "Desktop")
-    print("3 másodperc múlva képkészítés egy háttérben lévő ablakról...")
+    logger.info("3 másodperc múlva képkészítés egy háttérben lévő ablakról...")
     time.sleep(3)
     take_screenshot(
-        out_dir, 
+        out_dir,
         capture_type="program",
         window_title="Jegyzettömb"
     )
