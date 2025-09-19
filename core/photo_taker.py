@@ -1,9 +1,13 @@
 # core/photo_taker.py
 
+import logging
 import os
 from datetime import datetime
 
 import cv2
+
+
+logger = logging.getLogger(__name__)
 
 
 def take_photo(save_directory, filename_prefix="Foto"):
@@ -12,7 +16,7 @@ def take_photo(save_directory, filename_prefix="Foto"):
     success, frame = cap.read()
     cap.release()
     if not success:
-        print("HIBA: Nem sikerült képet készíteni a webkameráról.")
+        logger.error("Nem sikerült képet készíteni a webkameráról.")
         return None
 
     os.makedirs(save_directory, exist_ok=True)
@@ -20,7 +24,7 @@ def take_photo(save_directory, filename_prefix="Foto"):
     filename = f"{filename_prefix}_{timestamp}.png"
     save_path = os.path.join(save_directory, filename)
     if cv2.imwrite(save_path, frame):
-        print(f"Fotó elmentve: {save_path}")
+        logger.info("Fotó elmentve: %s", save_path)
         return save_path
-    print(f"HIBA: Nem sikerült elmenteni a fotót ide: {save_path}")
+    logger.error("Nem sikerült elmenteni a fotót ide: %s", save_path)
     return None

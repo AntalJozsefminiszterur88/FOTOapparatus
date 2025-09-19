@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # APScheduler importok
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -18,13 +19,11 @@ try:
     # De a rugalmasság kedvéért kaphat egy config_load_func-ot.
 except ImportError:
     # Ha önállóan futtatjuk teszteléshez
-    from screenshot_taker import take_screenshot
+    from screenshot_taker import take_screenshot, take_discord_screenshot
 
 # PySide6 importok a QRect-hez és a főszálon történő híváshoz
 from PySide6.QtCore import QCoreApplication, QRect, QTimer
 
-# Logging beállítása
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class Scheduler:
@@ -56,6 +55,7 @@ class Scheduler:
         hotkey_number,
         window_title,
         delay_after_hotkey,
+        completion_callback=None,
     ):
         """Delegate Discord capture to the Qt main thread using QTimer.
 
@@ -67,11 +67,9 @@ class Scheduler:
         """
 
         app = QCoreApplication.instance()
-        if app is not None:
-            QTimer.singleShot(
-                0,
-                app,
-                lambda: take_discord_screenshot(
+        def _execute_capture():
+            try:
+                take_discord_screenshot(
                     save_path,
                     filename_prefix,
                     area,
@@ -82,23 +80,78 @@ class Scheduler:
                     hotkey_number,
                     window_title,
                     delay_after_hotkey,
-                ),
+                )
+            except Exception:
+                logger.exception("Hiba a Discord képkészítés végrehajtása közben.")
+            finally:
+                if completion_callback:
+                    completion_callback()
+
+        if app is not None:
+            QTimer.singleShot(
+                0,
+                app,
+                _execute_capture,
             )
         else:
             # Ha valamiért nincs Qt alkalmazás, próbáljuk meg közvetlenül
             # meghívni (pl. tesztkörnyezetben)
-            take_discord_screenshot(
+            _execute_capture()
+
+    def _verify_capture_completion(self, save_path, filename_prefix, start_time, tolerance_seconds=120):
+        """Ellenőrzi, hogy a megadott mappában létrejött-e időben a fájl."""
+        try:
+            target_dir = Path(save_path)
+            if not target_dir.exists():
+                logger.error("A mentési mappa nem létezik: %s", save_path)
+                return
+
+            logger.debug(
+                "Képkészítés ellenőrzése: mappa=%s, előtag=%s, indulás=%s, tolerancia=%s mp",
                 save_path,
                 filename_prefix,
-                area,
-                include_timestamp,
-                timestamp_position,
-                stay_foreground,
-                use_hotkey,
-                hotkey_number,
-                window_title,
-                delay_after_hotkey,
+                start_time,
+                tolerance_seconds,
             )
+
+            candidate_files = sorted(
+                target_dir.glob(f"{filename_prefix}_*.png"),
+                key=lambda path: path.stat().st_mtime,
+                reverse=True,
+            )
+
+            for candidate in candidate_files:
+                file_mtime = datetime.fromtimestamp(candidate.stat().st_mtime)
+                if file_mtime >= start_time - timedelta(seconds=tolerance_seconds):
+                    delay = (file_mtime - start_time).total_seconds()
+                    if delay < 0:
+                        logger.warning(
+                            "A legfrissebb kép (%s) időbélyege a várt indítás előtt van (%.1f másodperccel).",
+                            candidate,
+                            -delay,
+                        )
+                    elif delay <= tolerance_seconds:
+                        logger.info(
+                            "Kép időben elkészült: %s (késés: %.1f másodperc).",
+                            candidate,
+                            delay,
+                        )
+                    else:
+                        logger.warning(
+                            "Kép elkészült, de a késés (%.1f másodperc) meghaladja a megengedett %d másodpercet: %s",
+                            delay,
+                            tolerance_seconds,
+                            candidate,
+                        )
+                    return
+
+            logger.error(
+                "Nem található a(z) '%s' előtaggal rendelkező friss kép a mappában: %s",
+                filename_prefix,
+                save_path,
+            )
+        except Exception:
+            logger.exception("Hiba történt a képfájl ellenőrzése közben.")
 
     def _schedule_jobs(self):
         """
@@ -167,31 +220,103 @@ class Scheduler:
 
                 # Feladat hozzáadása az ütemezőhöz
                 job_id = f"capture_job_{i}"
+                filename_prefix = "Kép"
                 if capture_type == "discord":
                     if not discord_settings.get("window_title"):
                         logger.warning("Discord ablak nincs kiválasztva, a feladat kihagyva.")
                         continue
-                    job_func = self._run_discord_capture
-                    job_args = [
-                        save_path,
-                        "Kép",
-                        area_arg,
-                        include_timestamp,
-                        timestamp_position,
-                        discord_settings.get("stay_foreground", False),
-                        discord_settings.get("use_hotkey", False),
-                        discord_settings.get("hotkey_number", 1),
-                        discord_settings.get("window_title", "Discord"),
-                        discord_settings.get("delay_after_hotkey", 2.0),
-                    ]
+
+                    window_title_value = discord_settings.get("window_title", "Discord")
+                    stay_foreground_value = discord_settings.get("stay_foreground", False)
+                    use_hotkey_value = discord_settings.get("use_hotkey", False)
+                    hotkey_number_value = discord_settings.get("hotkey_number", 1)
+                    delay_value = discord_settings.get("delay_after_hotkey", 2.0)
+
+                    def discord_job(
+                        _save_path=save_path,
+                        _filename_prefix=filename_prefix,
+                        _area=area_arg,
+                        _include_ts=include_timestamp,
+                        _ts_position=timestamp_position,
+                        _stay_foreground=stay_foreground_value,
+                        _use_hotkey=use_hotkey_value,
+                        _hotkey_number=hotkey_number_value,
+                        _window_title=window_title_value,
+                        _delay=delay_value,
+                        _job_id=job_id,
+                        _time_str=time_str,
+                        _days_str=days_str,
+                    ):
+                        start_time = datetime.now()
+                        logger.info(
+                            "Ütemezett Discord feladat indul (ID: %s, idő: %s, napok: %s).",
+                            _job_id,
+                            _time_str,
+                            _days_str,
+                        )
+
+                        def _on_complete():
+                            self._verify_capture_completion(_save_path, _filename_prefix, start_time)
+
+                        try:
+                            self._run_discord_capture(
+                                _save_path,
+                                _filename_prefix,
+                                _area,
+                                _include_ts,
+                                _ts_position,
+                                _stay_foreground,
+                                _use_hotkey,
+                                _hotkey_number,
+                                _window_title,
+                                _delay,
+                                completion_callback=_on_complete,
+                            )
+                        except Exception:
+                            logger.exception("A Discord feladat végrehajtása kivételt dobott (ID: %s).", _job_id)
+                            _on_complete()
+
+                    job_callable = discord_job
                 else:
-                    job_func = take_screenshot
-                    job_args = [save_path, "Kép", area_arg, include_timestamp, timestamp_position, target_window]
+                    target_window_value = target_window
+
+                    def screenshot_job(
+                        _save_path=save_path,
+                        _filename_prefix=filename_prefix,
+                        _area=area_arg,
+                        _include_ts=include_timestamp,
+                        _ts_position=timestamp_position,
+                        _target_window=target_window_value,
+                        _job_id=job_id,
+                        _time_str=time_str,
+                        _days_str=days_str,
+                    ):
+                        start_time = datetime.now()
+                        logger.info(
+                            "Ütemezett képernyőkép feladat indul (ID: %s, idő: %s, napok: %s).",
+                            _job_id,
+                            _time_str,
+                            _days_str,
+                        )
+                        try:
+                            take_screenshot(
+                                _save_path,
+                                _filename_prefix,
+                                _area,
+                                _include_ts,
+                                _ts_position,
+                                _target_window,
+                            )
+                        except Exception:
+                            logger.exception("A képernyőkép készítése közben kivétel történt (ID: %s).", _job_id)
+                        finally:
+                            self._verify_capture_completion(_save_path, _filename_prefix, start_time)
+
+                    job_callable = screenshot_job
 
                 self.scheduler.add_job(
-                    job_func,
+                    job_callable,
                     trigger=trigger,
-                    args=job_args,
                     id=job_id,
                     name=f"Kép at {time_str} on {days_str}",
                     replace_existing=True,
