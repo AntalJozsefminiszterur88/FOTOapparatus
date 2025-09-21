@@ -175,13 +175,21 @@ def _capture_window(
         logger.exception("Hiba a '%s' ablak rögzítése közben.", title)
         return None
     finally:
-        # --- A VÉGSŐ JAVÍTÁS ---
-        # Mielőtt visszaállítjuk az eredeti ablakot, ellenőrizzük, hogy még létezik-e!
-        if restore_foreground and original_foreground_hwnd and win32gui.IsWindow(original_foreground_hwnd):
+        if restore_foreground and original_foreground_hwnd:
             try:
-                win32gui.SetForegroundWindow(original_foreground_hwnd)
+                if win32gui.IsWindow(original_foreground_hwnd):
+                    try:
+                        win32gui.SetForegroundWindow(original_foreground_hwnd)
+                    except Exception:
+                        logger.warning(
+                            "Az eredeti ablakot nem sikerült visszaállítani az előtérbe.",
+                            exc_info=True,
+                        )
             except Exception:
-                logger.warning("Az eredeti ablakot nem sikerült visszaállítani az előtérbe.")
+                logger.warning(
+                    "Az eredeti ablak állapotának ellenőrzése nem sikerült.",
+                    exc_info=True,
+                )
 
         user32.AttachThreadInput(current_thread_id, target_thread_id, False)
 
