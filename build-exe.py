@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import sys
 import argparse
-import PySide6
+import importlib
 
 # --- Konfiguráció ---
 APP_NAME = "FOTOapp"
@@ -13,6 +13,32 @@ ENTRY_POINT = "main.py"
 ICON_PATH = os.path.join("assets", "camera_icon.ico")
 ASSETS_PATH = "assets"
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def ensure_module(module_name: str, package_name: str | None = None):
+    """Biztosítja, hogy a megadott modul telepítve legyen."""
+
+    if importlib.util.find_spec(module_name) is not None:
+        return importlib.import_module(module_name)
+
+    install_target = package_name or module_name
+    print(
+        f"Hiba: A '{module_name}' modul nem található. Megpróbálom telepíteni a(z) '{install_target}' csomagot..."
+    )
+
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", install_target],
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        print(
+            "Nem sikerült telepíteni a szükséges csomagot. Kérlek futtasd kézzel:"
+            f" '{sys.executable} -m pip install {install_target}'"
+        )
+        sys.exit(1)
+
+    return importlib.import_module(module_name)
 
 def main():
     parser = argparse.ArgumentParser(description="FOTOapp build script")
@@ -27,9 +53,13 @@ def main():
 
     print(">>> Build folyamat elindítva...")
 
+    # Ellenőrizzük, hogy a szükséges csomagok telepítve vannak-e
+    pyside_module = ensure_module("PySide6", "PySide6")
+    ensure_module("PyInstaller", "pyinstaller")
+
     # Stílusok és a qt.conf útvonalának megkeresése
     try:
-        pyside_path = os.path.dirname(PySide6.__file__)
+        pyside_path = os.path.dirname(pyside_module.__file__)
         pyside_plugins_path = os.path.join(pyside_path, "plugins")
         if not os.path.exists(pyside_plugins_path): raise FileNotFoundError
         print(f"    - Plugins mappa megtalálva: {pyside_plugins_path}")
