@@ -13,6 +13,7 @@ from apscheduler.jobstores.base import JobLookupError
 # Figyelem a relatív importra, ha csomagként használjuk
 try:
     from .screenshot_taker import take_screenshot, take_discord_screenshot
+    from .activity_monitor import get_idle_duration
     # ConfigManager itt technikailag nem kell, azt a MainWindow példányosítja
     # és a beállításokat átadja a schedulernek, vagy a scheduler kap egy referenciát rá.
     # Egyszerűbb, ha a MainWindow tölti be a configot és adja át az adatokat.
@@ -20,6 +21,7 @@ try:
 except ImportError:
     # Ha önállóan futtatjuk teszteléshez
     from screenshot_taker import take_screenshot, take_discord_screenshot
+    from activity_monitor import get_idle_duration
 
 # PySide6 importok a QRect-hez és a főszálon történő híváshoz
 from PySide6.QtCore import QCoreApplication, QRect, QTimer
@@ -179,6 +181,8 @@ class Scheduler:
         include_timestamp = self.current_settings.get("include_timestamp", True)
         timestamp_position = self.current_settings.get("timestamp_position", "top-left")
         discord_settings = self.current_settings.get("discord_settings", {})
+        idle_check_enabled = self.current_settings.get("idle_check_enabled", False)
+        idle_threshold_minutes = self.current_settings.get("idle_threshold_minutes", 5)
 
         logger.info(
             f"Feladatok ütemezése {len(schedules)} szabály alapján. Mentési hely: {save_path}, Típus: {capture_type}, Mód: {mode}"
@@ -247,6 +251,15 @@ class Scheduler:
                         _time_str=time_str,
                         _days_str=days_str,
                     ):
+                        if idle_check_enabled:
+                            idle_seconds = get_idle_duration()
+                            if idle_seconds < idle_threshold_minutes * 60:
+                                logger.info(
+                                    "Felhasználó aktív (inaktivitás %.1f mp < %d mp), Discord feladat kihagyva.",
+                                    idle_seconds,
+                                    idle_threshold_minutes * 60,
+                                )
+                                return
                         start_time = datetime.now()
                         logger.info(
                             "Ütemezett Discord feladat indul (ID: %s, idő: %s, napok: %s).",
@@ -291,6 +304,15 @@ class Scheduler:
                         _time_str=time_str,
                         _days_str=days_str,
                     ):
+                        if idle_check_enabled:
+                            idle_seconds = get_idle_duration()
+                            if idle_seconds < idle_threshold_minutes * 60:
+                                logger.info(
+                                    "Felhasználó aktív (inaktivitás %.1f mp < %d mp), képernyőkép kihagyva.",
+                                    idle_seconds,
+                                    idle_threshold_minutes * 60,
+                                )
+                                return
                         start_time = datetime.now()
                         logger.info(
                             "Ütemezett képernyőkép feladat indul (ID: %s, idő: %s, napok: %s).",

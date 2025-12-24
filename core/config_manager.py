@@ -58,6 +58,8 @@ class ConfigManager:
             "target_window": "",
             "include_timestamp": True,
             "timestamp_position": "top-left",
+            "idle_check_enabled": False,
+            "idle_threshold_minutes": 5,
             "discord_settings": {
                 "stay_foreground": False,
                 "use_hotkey": False,
