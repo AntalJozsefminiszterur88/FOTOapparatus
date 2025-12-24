@@ -25,6 +25,7 @@ try:
         QCheckBox,
         QSpacerItem,
         QSizePolicy,
+        QSpinBox,
         QApplication,
         QSystemTrayIcon,
         QMenu,
@@ -379,6 +380,20 @@ class MainWindow(QMainWindow):
         else:
             self.autostart_checkbox.setVisible(False)
 
+        idle_container = QWidget()
+        idle_layout = QHBoxLayout(idle_container)
+        idle_layout.setContentsMargins(0, 0, 0, 0)
+        self.idle_checkbox = QCheckBox("Csak inaktivitás esetén")
+        self.idle_spinbox = QSpinBox()
+        self.idle_spinbox.setRange(1, 120)
+        self.idle_spinbox.setSuffix(" perc")
+        self.idle_spinbox.setEnabled(False)
+        self.idle_checkbox.toggled.connect(self.idle_spinbox.setEnabled)
+        idle_layout.addWidget(self.idle_checkbox)
+        idle_layout.addWidget(self.idle_spinbox)
+        idle_layout.addStretch()
+        options_layout.addWidget(idle_container)
+
         bottom_layout.addLayout(options_layout)
 
         self.save_button = QPushButton("Mentés")
@@ -405,6 +420,10 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'timestamp_widget'):
             self.timestamp_widget.include_changed.connect(lambda _: self._mark_dirty())
             self.timestamp_widget.position_changed.connect(lambda _: self._mark_dirty())
+        if hasattr(self, "idle_checkbox"):
+            self.idle_checkbox.toggled.connect(lambda _: self._mark_dirty())
+        if hasattr(self, "idle_spinbox"):
+            self.idle_spinbox.valueChanged.connect(lambda _: self._mark_dirty())
         if autostart_manager._IS_WINDOWS and hasattr(self, 'autostart_checkbox') and self.autostart_checkbox:
             try:
                 self.autostart_checkbox.stateChanged.connect(self._handle_autostart_change)
@@ -555,6 +574,12 @@ class MainWindow(QMainWindow):
             ts_enabled = self.settings.get("include_timestamp", True)
             ts_position = self.settings.get("timestamp_position", "top-left")
             self.timestamp_widget.set_settings(ts_enabled, ts_position)
+        if hasattr(self, "idle_checkbox") and hasattr(self, "idle_spinbox"):
+            idle_enabled = self.settings.get("idle_check_enabled", False)
+            idle_minutes = self.settings.get("idle_threshold_minutes", 5)
+            self.idle_checkbox.setChecked(idle_enabled)
+            self.idle_spinbox.setValue(idle_minutes)
+            self.idle_spinbox.setEnabled(idle_enabled)
         if autostart_manager._IS_WINDOWS and hasattr(self, 'autostart_checkbox') and self.autostart_checkbox:
             autostart_preferred = self.settings.get("autostart_preferred", False)
             logger.info(f"UI Update -> Autostart: JSON preferencia = {autostart_preferred}")
@@ -675,6 +700,8 @@ class MainWindow(QMainWindow):
             "autostart_preferred": self.settings.get("autostart_preferred", False),
             "include_timestamp": self.timestamp_checkbox.isChecked() if hasattr(self, "timestamp_checkbox") else True,
             "timestamp_position": self.timestamp_widget.get_settings()[1] if hasattr(self, "timestamp_widget") else "top-left",
+            "idle_check_enabled": self.idle_checkbox.isChecked() if hasattr(self, "idle_checkbox") else False,
+            "idle_threshold_minutes": self.idle_spinbox.value() if hasattr(self, "idle_spinbox") else 5,
             "discord_settings": self.discord_settings,
         }
         logger.info(f"Teljes mentendő new_settings: {new_settings}")
