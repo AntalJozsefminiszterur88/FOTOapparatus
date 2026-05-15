@@ -1,6 +1,0 @@
-PySide6
-APScheduler
-Pillow
-opencv-python
-pywin32; platform_system == 'Windows'
-pygetwindow; platform_system == 'Windows'

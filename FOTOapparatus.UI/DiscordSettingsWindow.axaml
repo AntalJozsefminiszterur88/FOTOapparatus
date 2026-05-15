@@ -1,0 +1,50 @@
+<Window
+    x:Class="FOTOapparatus.UI.DiscordSettingsWindow"
+    x:ClassModifier="internal"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    CanResize="False"
+    Height="360"
+    Icon="avares://FOTOapparatus.UI/Assets/camera_icon.png"
+    MinHeight="360"
+    MinWidth="520"
+    ShowInTaskbar="False"
+    Title="Discord mód beállításai"
+    Width="520"
+    WindowStartupLocation="CenterOwner"
+    Opened="Window_OnOpened">
+  <Border Padding="18">
+    <StackPanel Spacing="12">
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="section-title" Text="Discord ablak" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <ComboBox x:Name="WindowComboBox" />
+            <Button Grid.Column="1" Click="RefreshWindowsButton_OnClick">Frissítés</Button>
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="section-title" Text="Működés" />
+          <CheckBox x:Name="StayForegroundCheckBox">Discord maradjon az előtérben</CheckBox>
+          <CheckBox x:Name="UseHotkeyCheckBox" Click="UseHotkeyCheckBox_OnClick">Ctrl + szám lenyomása fotózás előtt</CheckBox>
+
+          <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="8">
+            <TextBlock VerticalAlignment="Center">Szám:</TextBlock>
+            <NumericUpDown x:Name="HotkeyNumberInput" Grid.Column="1" Maximum="9" Minimum="0" Value="1" Width="90" />
+            <TextBlock Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center">Várakozás (mp):</TextBlock>
+            <NumericUpDown x:Name="DelayInput" Grid.Column="3" Increment="0.5" Maximum="30" Minimum="0" Value="2" Width="120" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock Classes="muted" VerticalAlignment="Center">A Discord hotkey Linuxon X11 környezetben működik.</TextBlock>
+        <Button Grid.Column="1" Click="CancelButton_OnClick">Mégse</Button>
+        <Button Grid.Column="2" Classes="primary" Click="OkButton_OnClick">OK</Button>
+      </Grid>
+    </StackPanel>
+  </Border>
+</Window>

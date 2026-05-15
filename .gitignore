@@ -1,0 +1,13 @@
+src/FOTOapparatus.Avalonia/bin/
+src/FOTOapparatus.Avalonia/obj/
+__pycache__/
+*.pyc
+bin/
+obj/
+*.user
+*.suo
+.vs/
+node_modules/
+dist/
+legacy/dist/
+*.pdb

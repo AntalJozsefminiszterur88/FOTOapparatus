@@ -1,0 +1,68 @@
+<Window
+    x:Class="FOTOapparatus.Avalonia.Windows.SelectionOverlayWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Width="1280"
+    Height="820"
+    MinWidth="900"
+    MinHeight="640"
+    Title="Terület kijelölése"
+    WindowStartupLocation="CenterOwner"
+    Closed="Window_OnClosed"
+    KeyDown="Window_OnKeyDown"
+    Opened="Window_OnOpened">
+  <Border Padding="16">
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+      <StackPanel Grid.Row="0" Spacing="4">
+        <TextBlock Classes="section-title" Margin="0" Text="Terület kijelölése" />
+        <TextBlock
+            Classes="muted"
+            Text="Húzd végig az egeret a képen a kivágandó rész fölött. Az alkalmazásablak a pillanatkép készítése idejére automatikusan eltűnik."
+            TextWrapping="Wrap" />
+      </StackPanel>
+
+      <Border Grid.Row="1" Classes="card" Padding="8">
+        <Grid
+            x:Name="PreviewContainer"
+            Background="#17191D"
+            ClipToBounds="True"
+            SizeChanged="PreviewContainer_OnSizeChanged">
+          <Image x:Name="PreviewImage" Stretch="Uniform" />
+
+          <Canvas
+              x:Name="OverlayCanvas"
+              Background="#01000000"
+              PointerMoved="OverlayCanvas_OnPointerMoved"
+              PointerPressed="OverlayCanvas_OnPointerPressed"
+              PointerReleased="OverlayCanvas_OnPointerReleased">
+            <Border
+                x:Name="SelectionBorder"
+                Background="#26007DFF"
+                BorderBrush="#FF66B3FF"
+                BorderThickness="2"
+                IsVisible="False" />
+
+            <Border
+                x:Name="SelectionInfoBadge"
+                Background="#E0202025"
+                CornerRadius="6"
+                IsVisible="False"
+                Padding="8,4">
+              <TextBlock x:Name="DimensionText" Foreground="White" />
+            </Border>
+          </Canvas>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBlock
+            x:Name="StatusText"
+            Classes="muted"
+            Text="Még nincs kijelölés."
+            VerticalAlignment="Center" />
+        <Button Grid.Column="1" Click="CancelButton_OnClick">Mégse</Button>
+        <Button x:Name="AcceptButton" Grid.Column="2" Click="AcceptButton_OnClick" IsEnabled="False">Kijelölés használata</Button>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

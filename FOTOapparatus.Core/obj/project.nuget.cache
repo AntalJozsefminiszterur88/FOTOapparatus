@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "v01nY/J3KdENOdopySjAbqihsVS6hOMBc3l1H8VyA5P5ugDxCnyC6lJ5Qf8mD0xnC5/J9YAFQWubb3/6AuujQg==",
+  "success": true,
+  "projectFilePath": "/home/server/Documents/Projects/FOTOapparatus/FOTOapparatus.Core/FOTOapparatus.Core.csproj",
+  "expectedPackageFiles": [
+    "/home/server/.nuget/packages/communitytoolkit.mvvm/8.4.2/communitytoolkit.mvvm.8.4.2.nupkg.sha512"
+  ],
+  "logs": []
+}

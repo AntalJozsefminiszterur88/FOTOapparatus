@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=FOTO-Apparatus
+Comment=FOTOapparatus Avalonia desktop app
+Exec=/home/server/Documents/Projects/FOTOapparatus/src/FOTOapparatus.Avalonia/bin/Debug/net8.0/FOTOapparatus.Avalonia
+Path=/home/server/Documents/Projects/FOTOapparatus/src/FOTOapparatus.Avalonia/bin/Debug/net8.0
+Icon=/home/server/Documents/Projects/FOTOapparatus/assets/camera_icon.png
+StartupWMClass=FOTOapparatus.Avalonia
+Terminal=false
+Categories=Utility;Graphics;
+StartupNotify=true

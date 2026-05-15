@@ -1,0 +1,20 @@
+<Window
+    x:Class="FOTOapparatus.UI.MessageDialogWindow"
+    x:ClassModifier="internal"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    CanResize="False"
+    Height="220"
+    Icon="avares://FOTOapparatus.UI/Assets/camera_icon.png"
+    MinHeight="220"
+    MinWidth="420"
+    ShowInTaskbar="False"
+    Width="440"
+    WindowStartupLocation="CenterOwner">
+  <Border Padding="18">
+    <Grid RowDefinitions="*,Auto" RowSpacing="16">
+      <TextBlock x:Name="MessageTextBlock" TextWrapping="Wrap" VerticalAlignment="Center" />
+      <StackPanel x:Name="ButtonPanel" Grid.Row="1" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8" />
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "dgSpecHash": "tx+kBe+bmV8DZo91T1hofhzWaswuhQXXcM71NDVyvBzz38DNnGOkjtFbR5r+p5DaO0kiHYCWhf/ttEJ570cokw==",
+  "success": true,
+  "projectFilePath": "/home/server/Documents/Projects/FOTOapparatus/FOTOapparatus.LinuxServices/FOTOapparatus.LinuxServices.csproj",
+  "expectedPackageFiles": [
+    "/home/server/.nuget/packages/communitytoolkit.mvvm/8.4.2/communitytoolkit.mvvm.8.4.2.nupkg.sha512",
+    "/home/server/.nuget/packages/skiasharp/3.119.2/skiasharp.3.119.2.nupkg.sha512",
+    "/home/server/.nuget/packages/skiasharp.nativeassets.linux/3.119.2/skiasharp.nativeassets.linux.3.119.2.nupkg.sha512",
+    "/home/server/.nuget/packages/skiasharp.nativeassets.macos/3.119.2/skiasharp.nativeassets.macos.3.119.2.nupkg.sha512",
+    "/home/server/.nuget/packages/skiasharp.nativeassets.win32/3.119.2/skiasharp.nativeassets.win32.3.119.2.nupkg.sha512"
+  ],
+  "logs": []
+}

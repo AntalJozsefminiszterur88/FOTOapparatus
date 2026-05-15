@@ -1,0 +1,9 @@
+global using System;
+global using System.IO;
+global using System.Collections.Generic;
+global using System.Linq;
+global using System.Threading;
+global using System.Threading.Tasks;
+global using FOTOapparatus.Core;
+global using FOTOapparatus.Core.Models;
+global using FOTOapparatus.Core.Interfaces;
