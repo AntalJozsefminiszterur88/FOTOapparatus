@@ -37,5 +37,6 @@ class Program
             .WithDeveloperTools()
 #endif
             .WithInterFont()
-            .LogToTrace();
+            .LogToTrace()
+            .LogToTrace(Avalonia.Logging.LogEventLevel.Verbose);
 }
