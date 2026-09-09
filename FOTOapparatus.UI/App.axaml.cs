@@ -14,6 +14,8 @@ namespace FOTOapparatus.UI;
 
 public partial class App : Application
 {
+    private MainWindow? _mainWindow;
+
     public IServiceProvider? Services { get; private set; }
 
     public override void Initialize()
@@ -50,8 +52,20 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var mainWindow = Services.GetRequiredService<MainWindow>();
-            desktop.MainWindow = mainWindow;
+            _mainWindow = Services.GetRequiredService<MainWindow>();
+
+            if (_mainWindow.StartHidden)
+            {
+                // Do not assign a hidden-start window to MainWindow here. The desktop
+                // lifetime would map it first and Hide() could only run afterwards,
+                // leaving a transparent X11 frame behind on Cinnamon.
+                Dispatcher.UIThread.Post(async () =>
+                    await _mainWindow.InitializeForStartupAsync());
+            }
+            else
+            {
+                desktop.MainWindow = _mainWindow;
+            }
 
             Task.Run(async () =>
             {
@@ -65,7 +79,7 @@ public partial class App : Application
                         var message = await reader.ReadLineAsync();
                         if (message == "SHOW")
                         {
-                            Dispatcher.UIThread.Post(() => mainWindow.ShowFromExternalRequest());
+                            Dispatcher.UIThread.Post(() => _mainWindow.ShowFromExternalRequest());
                         }
                     }
                     catch
@@ -81,25 +95,19 @@ public partial class App : Application
 
     private void TrayIcon_OnClicked(object? sender, EventArgs e)
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: MainWindow window })
-        {
-            window.ShowFromExternalRequest();
-        }
+        _mainWindow?.ShowFromExternalRequest();
     }
 
     private void ShowTrayMenuItem_OnClick(object? sender, EventArgs e)
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: MainWindow window })
-        {
-            window.ShowFromExternalRequest();
-        }
+        _mainWindow?.ShowFromExternalRequest();
     }
 
     private async void ExitTrayMenuItem_OnClick(object? sender, EventArgs e)
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: MainWindow window })
+        if (_mainWindow is not null)
         {
-            await window.ExitApplicationAsync();
+            await _mainWindow.ExitApplicationAsync();
         }
     }
 }

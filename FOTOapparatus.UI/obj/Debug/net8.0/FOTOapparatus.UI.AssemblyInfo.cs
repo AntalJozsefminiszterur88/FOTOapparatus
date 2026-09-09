@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FOTOapparatus.UI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0c9404f4ee8143501a4bbfe04eb29b19a095ddb8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+351004605e3047e4a9c2d3aa7a235180cdc553ba")]
 [assembly: System.Reflection.AssemblyProductAttribute("FOTOapparatus.UI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FOTOapparatus.UI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

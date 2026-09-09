@@ -21,6 +21,8 @@ internal partial class MainWindow : Window
     private bool _autostartToggleInProgress;
     private AppSettings _currentSettings;
 
+    internal bool StartHidden => _startHidden;
+
     public MainWindow(
         IScreenshotService captureService,
         IWindowService windowDiscoveryService,
@@ -85,6 +87,9 @@ internal partial class MainWindow : Window
 
 
     private async void Window_OnOpened(object? sender, EventArgs e)
+        => await InitializeForStartupAsync();
+
+    internal async Task InitializeForStartupAsync()
     {
         if (_startupCompleted)
         {
@@ -97,15 +102,9 @@ internal partial class MainWindow : Window
         _schedulerService.Start();
         _schedulerService.UpdateSettings(_currentSettings);
 
-        if (_startHidden)
-        {
-            Hide();
-            _viewModel.StatusMessage = "Az alkalmazás a háttérben fut.";
-        }
-        else
-        {
-            _viewModel.StatusMessage = "Alkalmazás betöltve.";
-        }
+        _viewModel.StatusMessage = _startHidden && !IsVisible
+            ? "Az alkalmazás a háttérben fut."
+            : "Alkalmazás betöltve.";
     }
 
     private async void Window_OnClosing(object? sender, WindowClosingEventArgs e)

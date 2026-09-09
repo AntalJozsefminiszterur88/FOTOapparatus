@@ -1,4 +1,6 @@
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using System;
 using System.IO.Pipes;
 using System.Threading.Tasks;
@@ -27,7 +29,7 @@ class Program
         }
 
         BuildAvaloniaApp()
-            .StartWithClassicDesktopLifetime(args);
+            .StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
     }
 
     public static AppBuilder BuildAvaloniaApp()
