@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FOTOapparatus.LinuxServices
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FOTOapparatus.UI", "FOTOapparatus.UI\FOTOapparatus.UI.csproj", "{4C16B346-3D1C-4F13-B854-671A9453D0F3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FOTOapparatus.Tests", "FOTOapparatus.Tests\FOTOapparatus.Tests.csproj", "{DA706865-406B-4293-BD05-BBA85A44C9D7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{4C16B346-3D1C-4F13-B854-671A9453D0F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4C16B346-3D1C-4F13-B854-671A9453D0F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4C16B346-3D1C-4F13-B854-671A9453D0F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA706865-406B-4293-BD05-BBA85A44C9D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA706865-406B-4293-BD05-BBA85A44C9D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA706865-406B-4293-BD05-BBA85A44C9D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA706865-406B-4293-BD05-BBA85A44C9D7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
