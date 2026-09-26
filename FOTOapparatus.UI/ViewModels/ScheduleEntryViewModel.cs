@@ -72,8 +72,10 @@ public sealed class ScheduleSettingsViewModel : ViewModelBase
 
     public static ScheduleSettingsViewModel FromModel(ScheduleSettings model)
     {
-        var viewModel = new ScheduleSettingsViewModel();
-        viewModel.TimeText = $"{model.Time.Hours:00}:{model.Time.Minutes:00}";
+        var viewModel = new ScheduleSettingsViewModel
+        {
+            TimeText = $"{model.Time.Hours:00}:{model.Time.Minutes:00}",
+        };
 
         foreach (var day in model.Days)
         {
@@ -108,22 +110,18 @@ public sealed class ScheduleSettingsViewModel : ViewModelBase
 
     public ScheduleSettings ToModel()
     {
-        TimeSpan.TryParse(TimeText, out var time);
+        if (!TimeSpan.TryParse(TimeText, out var time)
+            || time < TimeSpan.Zero
+            || time >= TimeSpan.FromDays(1))
+        {
+            time = TimeSpan.Zero;
+        }
+
         return new ScheduleSettings
         {
             Time = time,
             Days = GetSelectedDays(),
         };
-    }
-
-    private static string NormalizeTimeText(string? timeText)
-    {
-        if (TimeSpan.TryParse(timeText, out var parsedTime))
-        {
-            return $"{parsedTime.Hours:00}:{parsedTime.Minutes:00}";
-        }
-
-        return "00:00";
     }
 
     private List<DayOfWeek> GetSelectedDays()

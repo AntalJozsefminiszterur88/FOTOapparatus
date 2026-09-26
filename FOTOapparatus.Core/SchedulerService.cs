@@ -5,8 +5,12 @@ namespace FOTOapparatus.Core;
 
 public sealed class SchedulerService
 {
+    private static readonly TimeSpan MaximumClockCheckInterval = TimeSpan.FromMinutes(1);
     private readonly IScreenshotService _screenshotService;
     private readonly IIdleService _idleService;
+    private readonly object _lifecycleLock = new();
+    private readonly object _settingsLock = new();
+    private readonly SemaphoreSlim _settingsChanged = new(0, 1);
     private AppSettings _settings;
     private CancellationTokenSource? _cts;
     private Task? _runnerTask;
@@ -22,75 +26,130 @@ public sealed class SchedulerService
 
     public void UpdateSettings(AppSettings settings)
     {
-        _settings = settings;
+        lock (_settingsLock)
+        {
+            _settings = settings;
+        }
+
+        try
+        {
+            _settingsChanged.Release();
+        }
+        catch (SemaphoreFullException)
+        {
+            // A pending signal already guarantees that the loop will reload settings.
+        }
+
         _onLog("Beállítások frissítve az időzítőben.");
     }
 
     public void Start()
     {
-        Stop();
-        _cts = new CancellationTokenSource();
-        _runnerTask = Task.Run(() => RunLoopAsync(_cts.Token));
+        lock (_lifecycleLock)
+        {
+            if (_runnerTask is { IsCompleted: false })
+            {
+                return;
+            }
+
+            _cts?.Dispose();
+            var cancellationSource = new CancellationTokenSource();
+            _cts = cancellationSource;
+            _runnerTask = Task.Run(() => RunLoopAsync(cancellationSource.Token));
+        }
+
         _onLog("Időzítő elindítva.");
     }
 
     public void Stop()
     {
-        if (_cts != null)
+        _ = StopAsync();
+    }
+
+    public async Task StopAsync()
+    {
+        CancellationTokenSource? cancellationSource;
+        Task? runnerTask;
+
+        lock (_lifecycleLock)
         {
-            _cts.Cancel();
-            _cts.Dispose();
+            cancellationSource = _cts;
+            runnerTask = _runnerTask;
             _cts = null;
+            _runnerTask = null;
         }
+
+        if (cancellationSource is null)
+        {
+            return;
+        }
+
+        cancellationSource.Cancel();
+        try
+        {
+            if (runnerTask is not null)
+            {
+                await runnerTask;
+            }
+        }
+        finally
+        {
+            cancellationSource.Dispose();
+        }
+
         _onLog("Időzítő leállítva.");
     }
 
     private async Task RunLoopAsync(CancellationToken token)
     {
-        while (!token.IsCancellationRequested)
-        {
-            var now = DateTime.Now;
-            
-            // Check if we need to run any schedule
-            var toRun = _settings.Schedules.Where(s => s.Enabled && s.Time.Hours == now.Hour && s.Time.Minutes == now.Minute && (s.Days.Count == 0 || s.Days.Contains(now.DayOfWeek))).ToList();
-            
-            if (toRun.Any())
-            {
-                // To avoid multiple runs in the same minute, we sleep at the end of the loop
-                _onLog($"Időzített feladat indul: {toRun.Count} db találat.");
-                await ExecuteCaptureAsync(token);
-                
-                // Wait until the minute passes
-                while (DateTime.Now.Minute == now.Minute && !token.IsCancellationRequested)
-                {
-                    await Task.Delay(1000, token);
-                }
-                continue;
-            }
+        DateTime? lastExecutedMinute = null;
 
-            // Sleep 1 second before checking again
-            try
+        try
+        {
+            while (!token.IsCancellationRequested)
             {
-                await Task.Delay(1000, token);
+                var settings = GetSettings();
+                var now = DateTime.Now;
+                var currentMinute = SchedulePlanner.FloorToMinute(now);
+                var toRun = SchedulePlanner.GetDueSchedules(settings, now);
+
+                if (toRun.Count > 0 && lastExecutedMinute != currentMinute)
+                {
+                    lastExecutedMinute = currentMinute;
+                    _onLog($"Időzített feladat indul: {toRun.Count} db találat.");
+                    await ExecuteCaptureAsync(settings, token);
+                    continue;
+                }
+
+                var waitTime = SchedulePlanner.GetWaitTime(settings, now, MaximumClockCheckInterval);
+                await _settingsChanged.WaitAsync(waitTime, token);
             }
-            catch (TaskCanceledException)
-            {
-                break;
-            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // Normal shutdown.
         }
     }
 
-    private async Task ExecuteCaptureAsync(CancellationToken token)
+    private AppSettings GetSettings()
+    {
+        lock (_settingsLock)
+        {
+            return _settings;
+        }
+    }
+
+    private async Task ExecuteCaptureAsync(AppSettings settings, CancellationToken token)
     {
         try
         {
-            if (_settings.IdleCheckEnabled)
+            if (settings.IdleCheckEnabled)
             {
                 var idleTime = await _idleService.GetIdleTimeAsync(token);
-                var idleThreshold = TimeSpan.FromMinutes(_settings.IdleThresholdMinutes);
+                var idleThreshold = TimeSpan.FromMinutes(settings.IdleThresholdMinutes);
                 if (idleTime.HasValue && idleTime.Value < idleThreshold)
                 {
-                    _onLog($"A felhasználó csak {idleTime.Value.TotalMinutes:F1} perce tétlen (határ: {_settings.IdleThresholdMinutes} perc), képkészítés kihagyva.");
+                    _onLog($"A felhasználó csak {idleTime.Value.TotalMinutes:F1} perce tétlen (határ: {settings.IdleThresholdMinutes} perc), képkészítés kihagyva.");
                     return;
                 }
 
@@ -100,7 +159,7 @@ public sealed class SchedulerService
                 }
             }
 
-            var path = await _screenshotService.CaptureAsync(_settings, "Kép", forceStayForeground: false, token);
+            var path = await _screenshotService.CaptureAsync(settings, "Kép", forceStayForeground: false, token);
             if (path != null)
             {
                 _onLog($"Automatikus kép elkészült: {path}");
@@ -111,6 +170,7 @@ public sealed class SchedulerService
             }
         }
         catch (Exception ex)
+            when (ex is not OperationCanceledException || !token.IsCancellationRequested)
         {
             _onLog($"Hiba az automatikus képkészítés során: {ex.Message}");
         }

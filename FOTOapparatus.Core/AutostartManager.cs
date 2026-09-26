@@ -16,7 +16,9 @@ public static class AutostartManager
     {
         try
         {
-            var executablePath = System.Reflection.Assembly.GetEntryAssembly()?.Location ?? string.Empty;
+            var executablePath = Environment.ProcessPath
+                                 ?? System.Reflection.Assembly.GetEntryAssembly()?.Location
+                                 ?? string.Empty;
             if (enabled)
             {
                 Directory.CreateDirectory(AutostartDir);

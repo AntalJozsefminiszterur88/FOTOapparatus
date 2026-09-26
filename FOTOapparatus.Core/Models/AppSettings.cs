@@ -18,17 +18,38 @@ public sealed class AppSettings
     public List<ScheduleSettings> Schedules { get; set; } = [];
 
     public AppSettings Clone()
-    {
-        return System.Text.Json.JsonSerializer.Deserialize<AppSettings>(System.Text.Json.JsonSerializer.Serialize(this)) ?? new AppSettings();
-    }
+        => new()
+        {
+            SavePath = SavePath,
+            CaptureType = CaptureType,
+            ScreenshotMode = ScreenshotMode,
+            CustomArea = CustomArea.Clone(),
+            IncludeTimestamp = IncludeTimestamp,
+            TimestampPosition = TimestampPosition,
+            TargetWindow = TargetWindow,
+            DiscordSettings = DiscordSettings.Clone(),
+            IdleCheckEnabled = IdleCheckEnabled,
+            IdleThresholdMinutes = IdleThresholdMinutes,
+            AutostartEnabled = AutostartEnabled,
+            Schedules = [.. Schedules.Select(schedule => schedule.Clone())],
+        };
 }
 
 public sealed class ScheduleSettings
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public TimeSpan Time { get; set; }
-    public List<DayOfWeek> Days { get; set; } = new();
-    
+    public List<DayOfWeek> Days { get; set; } = [];
+
     [JsonIgnore]
-    public bool Enabled { get; set; } = true; // Temporary state, maybe saved if needed
+    public bool Enabled { get; set; } = true;
+
+    public ScheduleSettings Clone()
+        => new()
+        {
+            Id = Id,
+            Time = Time,
+            Days = [.. Days],
+            Enabled = Enabled,
+        };
 }

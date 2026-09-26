@@ -4,15 +4,20 @@ using FOTOapparatus.Core.Models;
 
 namespace FOTOapparatus.LinuxServices;
 
-public sealed class LinuxWindowService : IWindowService
+public sealed partial class LinuxWindowService : IWindowService
 {
-    private static readonly Regex WmctrlLineRegex = new(
-        @"^(?<id>0x[0-9a-fA-F]+)\s+\S+\s+\S+\s+(?<class>\S+)\s+(?<title>.+)$",
-        RegexOptions.Compiled);
+    private readonly IProcessRunner _processRunner;
 
-    private static readonly Regex ActiveWindowRegex = new(
-        @"0x[0-9a-fA-F]+",
-        RegexOptions.Compiled);
+    [GeneratedRegex(@"^(?<id>0x[0-9a-fA-F]+)\s+\S+\s+(?<class>\S+)\s+\S+\s+(?<title>.+)$")]
+    private static partial Regex WmctrlLineRegex();
+
+    [GeneratedRegex(@"0x[0-9a-fA-F]+")]
+    private static partial Regex ActiveWindowRegex();
+
+    public LinuxWindowService(IProcessRunner processRunner)
+    {
+        _processRunner = processRunner;
+    }
 
     public async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
     {
@@ -23,7 +28,7 @@ public sealed class LinuxWindowService : IWindowService
 
         try
         {
-            var result = await ProcessRunner.RunAsync(
+            var result = await _processRunner.RunAsync(
                 "wmctrl",
                 ["-lx"],
                 cancellationToken: cancellationToken);
@@ -50,7 +55,7 @@ public sealed class LinuxWindowService : IWindowService
     {
         try
         {
-            var result = await ProcessRunner.RunAsync(
+            var result = await _processRunner.RunAsync(
                 "wmctrl",
                 ["-ia", window.Id],
                 cancellationToken: cancellationToken);
@@ -67,7 +72,7 @@ public sealed class LinuxWindowService : IWindowService
     {
         try
         {
-            var result = await ProcessRunner.RunAsync(
+            var result = await _processRunner.RunAsync(
                 "xprop",
                 ["-root", "_NET_ACTIVE_WINDOW"],
                 cancellationToken: cancellationToken);
@@ -77,7 +82,7 @@ public sealed class LinuxWindowService : IWindowService
                 return null;
             }
 
-            return ActiveWindowRegex.Match(result.StandardOutput).Value;
+            return ActiveWindowRegex().Match(result.StandardOutput).Value;
         }
         catch
         {
@@ -85,24 +90,52 @@ public sealed class LinuxWindowService : IWindowService
         }
     }
 
-    public WindowInfo? FindBestMatch(IEnumerable<WindowInfo> windows, string title)
+    public WindowInfo? FindBestMatch(IEnumerable<WindowInfo> windows, string title, string? className = null)
     {
-        if (string.IsNullOrWhiteSpace(title))
+        var windowList = windows as IReadOnlyList<WindowInfo> ?? windows.ToList();
+
+        if (!string.IsNullOrWhiteSpace(className))
         {
-            return null;
+            var classMatch = windowList.FirstOrDefault(window =>
+                string.Equals(window.ClassName, className, StringComparison.OrdinalIgnoreCase));
+            if (classMatch is not null)
+            {
+                return classMatch;
+            }
         }
 
-        return windows.FirstOrDefault(window =>
-                   string.Equals(window.Title, title, StringComparison.CurrentCultureIgnoreCase))
-               ?? windows.FirstOrDefault(window =>
-                   window.Title.Contains(title, StringComparison.CurrentCultureIgnoreCase))
-               ?? windows.FirstOrDefault(window =>
-                   title.Contains(window.Title, StringComparison.CurrentCultureIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            var titleMatch = windowList.FirstOrDefault(window =>
+                                 string.Equals(window.Title, title, StringComparison.CurrentCultureIgnoreCase))
+                             ?? windowList.FirstOrDefault(window =>
+                                 window.Title.Contains(title, StringComparison.CurrentCultureIgnoreCase))
+                             ?? windowList.FirstOrDefault(window =>
+                                 title.Contains(window.Title, StringComparison.CurrentCultureIgnoreCase));
+            if (titleMatch is not null)
+            {
+                return titleMatch;
+            }
+        }
+
+        // Discord's official client and Vencord/Vesktop use different, stable X11
+        // window classes while the visible title changes with the active channel.
+        if (IsDiscordClientIdentifier(title) || IsDiscordClientIdentifier(className))
+        {
+            return windowList.FirstOrDefault(window => IsDiscordClientIdentifier(window.ClassName));
+        }
+
+        return null;
     }
+
+    private static bool IsDiscordClientIdentifier(string? value)
+        => value?.Contains("discord", StringComparison.OrdinalIgnoreCase) == true
+           || value?.Contains("vencord", StringComparison.OrdinalIgnoreCase) == true
+           || value?.Contains("vesktop", StringComparison.OrdinalIgnoreCase) == true;
 
     private static WindowInfo? ParseWindow(string line)
     {
-        var match = WmctrlLineRegex.Match(line.Trim());
+        var match = WmctrlLineRegex().Match(line.Trim());
         if (!match.Success)
         {
             return null;

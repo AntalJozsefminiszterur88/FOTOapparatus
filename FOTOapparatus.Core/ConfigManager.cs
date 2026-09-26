@@ -1,53 +1,103 @@
 using System.Text.Json;
+using FOTOapparatus.Core.Interfaces;
 using FOTOapparatus.Core.Models;
 
 namespace FOTOapparatus.Core;
 
-public static class ConfigManager
+public sealed class JsonSettingsStore : ISettingsStore
 {
-    private static readonly string ConfigDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "FOTOapparatus");
-
-    private static readonly string ConfigFile = Path.Combine(ConfigDir, "settings.json");
-
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public static async Task<AppSettings> LoadAsync()
+    private readonly string _configFile;
+    private readonly Action<Exception>? _onLoadError;
+
+    public JsonSettingsStore(string configFile, Action<Exception>? onLoadError = null)
     {
-        if (!File.Exists(ConfigFile))
+        ArgumentException.ThrowIfNullOrWhiteSpace(configFile);
+        _configFile = Path.GetFullPath(configFile);
+        _onLoadError = onLoadError;
+    }
+
+    public static JsonSettingsStore CreateDefault(Action<Exception>? onLoadError = null)
+    {
+        var configDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "FOTOapparatus");
+        return new JsonSettingsStore(Path.Combine(configDirectory, "settings.json"), onLoadError);
+    }
+
+    public async Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(_configFile))
         {
             return AppSettingsDefaults.Create();
         }
 
         try
         {
-            await using var stream = File.OpenRead(ConfigFile);
-            var settings = await JsonSerializer.DeserializeAsync<AppSettings>(stream, Options);
+            await using var stream = File.OpenRead(_configFile);
+            var settings = await JsonSerializer.DeserializeAsync<AppSettings>(
+                stream,
+                Options,
+                cancellationToken);
             settings ??= AppSettingsDefaults.Create();
 
             if (AppSettingsDefaults.NormalizeInPlace(settings))
             {
-                await SaveAsync(settings);
+                await SaveAsync(settings, cancellationToken);
             }
 
             return settings;
         }
-        catch
+        catch (Exception ex) when (ex is IOException
+                                   or UnauthorizedAccessException
+                                   or JsonException
+                                   or NotSupportedException)
         {
+            _onLoadError?.Invoke(ex);
             return AppSettingsDefaults.Create();
         }
     }
 
-    public static async Task SaveAsync(AppSettings settings)
+    public async Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(settings);
         AppSettingsDefaults.NormalizeInPlace(settings);
-        Directory.CreateDirectory(ConfigDir);
-        await using var stream = File.Create(ConfigFile);
-        await JsonSerializer.SerializeAsync(stream, settings, Options);
+
+        var configDirectory = Path.GetDirectoryName(_configFile)
+                              ?? throw new InvalidOperationException("A konfigurációs fájlnak nincs szülőmappája.");
+        Directory.CreateDirectory(configDirectory);
+
+        var temporaryFile = Path.Combine(
+            configDirectory,
+            $".{Path.GetFileName(_configFile)}.{Guid.NewGuid():N}.tmp");
+
+        try
+        {
+            await using (var stream = new FileStream(
+                             temporaryFile,
+                             FileMode.CreateNew,
+                             FileAccess.Write,
+                             FileShare.None,
+                             bufferSize: 16 * 1024,
+                             FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await JsonSerializer.SerializeAsync(stream, settings, Options, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+            }
+
+            File.Move(temporaryFile, _configFile, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryFile))
+            {
+                File.Delete(temporaryFile);
+            }
+        }
     }
 }

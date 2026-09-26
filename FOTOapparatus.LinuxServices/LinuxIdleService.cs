@@ -4,11 +4,18 @@ namespace FOTOapparatus.LinuxServices;
 
 public sealed class LinuxIdleService : IIdleService
 {
+    private readonly IProcessRunner _processRunner;
+
+    public LinuxIdleService(IProcessRunner processRunner)
+    {
+        _processRunner = processRunner;
+    }
+
     public async Task<TimeSpan?> GetIdleTimeAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var result = await ProcessRunner.RunAsync(
+            var result = await _processRunner.RunAsync(
                 "xprintidle",
                 [],
                 cancellationToken: cancellationToken);

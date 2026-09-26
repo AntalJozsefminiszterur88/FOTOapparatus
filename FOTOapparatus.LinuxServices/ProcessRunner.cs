@@ -2,9 +2,18 @@ using System.Diagnostics;
 
 namespace FOTOapparatus.LinuxServices;
 
-public static class ProcessRunner
+public interface IProcessRunner
 {
-    public static async Task<ProcessResult> RunAsync(
+    Task<ProcessResult> RunAsync(
+        string fileName,
+        IEnumerable<string> arguments,
+        int timeoutMs = 15000,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class ProcessRunner : IProcessRunner
+{
+    public async Task<ProcessResult> RunAsync(
         string fileName,
         IEnumerable<string> arguments,
         int timeoutMs = 15000,

@@ -7,14 +7,12 @@ public interface IWindowService
     Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default);
     Task<bool> ActivateWindowAsync(WindowInfo window, CancellationToken cancellationToken = default);
     Task<string?> GetActiveWindowIdAsync(CancellationToken cancellationToken = default);
-    WindowInfo? FindBestMatch(IEnumerable<WindowInfo> windows, string title);
+    WindowInfo? FindBestMatch(IEnumerable<WindowInfo> windows, string title, string? className = null);
 }
 
 public interface IHotkeyService
 {
-    Task SendCtrlNumberAsync(int number, CancellationToken cancellationToken = default);
-    Task SimulateMouseClickAsync(int x, int y, CancellationToken cancellationToken = default);
-    Task<string?> GetPixelColorHexAsync(int x, int y, CancellationToken cancellationToken = default);
+    Task SendCtrlNumberAsync(int number, string? windowId = null, CancellationToken cancellationToken = default);
 }
 
 public interface IScreenshotService
@@ -26,4 +24,10 @@ public interface IScreenshotService
 public interface IIdleService
 {
     Task<TimeSpan?> GetIdleTimeAsync(CancellationToken cancellationToken = default);
+}
+
+public interface ISettingsStore
+{
+    Task<AppSettings> LoadAsync(CancellationToken cancellationToken = default);
+    Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default);
 }

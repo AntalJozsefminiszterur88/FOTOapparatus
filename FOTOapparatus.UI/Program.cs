@@ -1,9 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using System;
-using System.IO.Pipes;
-using System.Threading.Tasks;
 
 namespace FOTOapparatus.UI;
 
@@ -12,33 +9,65 @@ class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        try
+        using var instanceLock = TryAcquireInstanceLock();
+        if (instanceLock is null)
         {
-            using var client = new NamedPipeClientStream(".", "FOTOapparatusPipe_Linux", PipeDirection.Out);
-            client.Connect(100);
-            using var writer = new System.IO.StreamWriter(client);
-            writer.WriteLine("SHOW");
-            writer.Flush();
-            Console.WriteLine("Az alkalmazás már fut. Értesítés a meglévő példánynak...");
-            return; // Successfully notified existing instance
-        }
-        catch (Exception)
-        {
-            // Could not connect, which means no instance is running or it crashed.
-            // Continue starting the app.
+            if (args.Contains("--hidden"))
+            {
+                Console.WriteLine("Az alkalmazás már fut a háttérben.");
+            }
+            else if (SingleInstanceService.TryNotifyExistingInstance())
+            {
+                Console.WriteLine("Az alkalmazás már fut. Értesítés a meglévő példánynak...");
+            }
+            else
+            {
+                Console.Error.WriteLine("Az alkalmazás már fut, de pillanatnyilag nem fogad megnyitási kérést.");
+            }
+
+            return;
         }
 
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args, ShutdownMode.OnExplicitShutdown);
     }
 
+    private static FileStream? TryAcquireInstanceLock()
+    {
+        var configDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "FOTOapparatus");
+        Directory.CreateDirectory(configDirectory);
+
+        try
+        {
+            return new FileStream(
+                Path.Combine(configDirectory, "instance.lock"),
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
+                FileShare.None);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            .With(new X11PlatformOptions
+            {
+                // This is a mostly background application. Software rendering avoids
+                // keeping the Mesa/LLVM graphics stack resident for a rarely shown UI.
+                RenderingMode = [X11RenderingMode.Software],
+            })
 #if DEBUG
             .WithDeveloperTools()
 #endif
-            .WithInterFont()
-            .LogToTrace()
-            .LogToTrace(Avalonia.Logging.LogEventLevel.Verbose);
+            .LogToTrace(Avalonia.Logging.LogEventLevel.Warning);
 }

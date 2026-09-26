@@ -41,8 +41,7 @@ internal partial class DiscordSettingsWindow : Window
 
     private void OkButton_OnClick(object? sender, RoutedEventArgs e)
     {
-        var selectedWindow = WindowComboBox.SelectedItem as WindowInfo;
-        if (selectedWindow is null)
+        if (WindowComboBox.SelectedItem is not WindowInfo selectedWindow)
         {
             return;
         }
@@ -53,16 +52,22 @@ internal partial class DiscordSettingsWindow : Window
             UseHotkey = UseHotkeyCheckBox.IsChecked == true,
             HotkeyNumber = Convert.ToInt32(HotkeyNumberInput.Value ?? 1m),
             WindowTitle = selectedWindow.Title,
+            WindowClassName = selectedWindow.ClassName,
             DelayAfterHotkey = Convert.ToInt32(DelayInput.Value ?? 2m),
         });
     }
 
     private async Task LoadWindowsAsync()
     {
-        var currentTitle = (WindowComboBox.SelectedItem as WindowInfo)?.Title ?? _settings.WindowTitle;
+        var currentWindow = WindowComboBox.SelectedItem as WindowInfo;
+        var currentTitle = currentWindow?.Title ?? _settings.WindowTitle;
+        var currentClassName = currentWindow?.ClassName ?? _settings.WindowClassName;
         var windows = await _windowDiscoveryService.GetWindowsAsync();
         WindowComboBox.ItemsSource = windows;
-        WindowComboBox.SelectedItem = _windowDiscoveryService.FindBestMatch(windows, currentTitle ?? string.Empty);
+        WindowComboBox.SelectedItem = _windowDiscoveryService.FindBestMatch(
+            windows,
+            currentTitle ?? string.Empty,
+            currentClassName);
     }
 
     private void UpdateHotkeyControls()

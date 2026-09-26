@@ -14,6 +14,7 @@ internal partial class MainWindow : Window
     private readonly IScreenshotService _captureService;
     private readonly IWindowService _windowDiscoveryService;
     private readonly SchedulerService _schedulerService;
+    private readonly ISettingsStore _settingsStore;
     private readonly MainWindowViewModel _viewModel;
     private readonly bool _startHidden;
     private bool _startupCompleted;
@@ -27,11 +28,13 @@ internal partial class MainWindow : Window
         IScreenshotService captureService,
         IWindowService windowDiscoveryService,
         SchedulerService schedulerService,
+        ISettingsStore settingsStore,
         AppSettings initialSettings)
     {
         _captureService = captureService;
         _windowDiscoveryService = windowDiscoveryService;
         _schedulerService = schedulerService;
+        _settingsStore = settingsStore;
         _currentSettings = initialSettings.Clone();
 
         var args = Environment.GetCommandLineArgs();
@@ -75,7 +78,7 @@ internal partial class MainWindow : Window
         }
 
         _isExiting = true;
-        _schedulerService.Stop();
+        await _schedulerService.StopAsync();
         Close();
 
         if (global::Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -167,7 +170,7 @@ internal partial class MainWindow : Window
 
         try
         {
-            await ConfigManager.SaveAsync(settings);
+            await _settingsStore.SaveAsync(settings);
             _currentSettings = settings.Clone();
             _schedulerService.UpdateSettings(_currentSettings);
             _viewModel.MarkSaved("Beállítások sikeresen elmentve.");
@@ -239,7 +242,7 @@ internal partial class MainWindow : Window
                 Title = "Mentési mappa",
             });
 
-        var selectedPath = folders.FirstOrDefault()?.TryGetLocalPath();
+        var selectedPath = folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
         if (!string.IsNullOrWhiteSpace(selectedPath))
         {
             _viewModel.SavePath = selectedPath;
@@ -352,7 +355,9 @@ internal partial class MainWindow : Window
                         return;
                     }
 
-                    if (settings.CaptureType == CaptureTypes.Discord && string.IsNullOrWhiteSpace(settings.DiscordSettings.WindowTitle))
+                    if (settings.CaptureType == CaptureTypes.Discord
+                        && string.IsNullOrWhiteSpace(settings.DiscordSettings.WindowTitle)
+                        && string.IsNullOrWhiteSpace(settings.DiscordSettings.WindowClassName))
                     {
                         await ShowDialogAsync(
                             "Hiányzó adat",
